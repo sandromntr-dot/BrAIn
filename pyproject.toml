@@ -1,0 +1,7 @@
+[project]
+name = "brain"
+version = "0.1.0"
+description = "Local AI assistant for document organization, indexing and search."
+readme = "README.md"
+requires-python = ">=3.14"
+dependencies = []
