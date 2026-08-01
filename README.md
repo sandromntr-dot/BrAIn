@@ -1,141 +1,125 @@
-# BrAIn
+🧠 BrAIn
+Local AI Document Assistant
 
-## Local AI Document Assistant
+O BrAIn é um assistente inteligente projetado para a organização, gerenciamento e localização de documentos utilizando Inteligência Artificial executada 100% localmente.
 
-O BrAIn é um assistente inteligente para organização, gerenciamento e localização de documentos utilizando Inteligência Artificial local.
+A proposta é oferecer uma solução definitiva para ajudar usuários e empresas a encontrarem documentos perdidos ou desorganizados em suas próprias máquinas, garantindo total privacidade, segurança e controle dos dados (alinhado às boas práticas de governança e LGPD).
 
-A proposta é criar uma solução que ajude usuários e empresas a encontrarem documentos perdidos ou desorganizados dentro de seus próprios computadores, mantendo privacidade, segurança e controle dos dados.
+⚠️ O Problema
+Diariamente, milhares de arquivos são criados, baixados e compartilhados:
 
----
+📄 PDFs e Documentos de texto
+📊 Planilhas e Apresentações
+📘 Manuais e Procedimentos operacionais
+📑 Atas e Relatórios
 
-# O problema
+Com a correria do dia a dia, a grande maioria acaba se perdendo num "buraco negro" chamado pasta Downloads ou em diretórios sem a devida organização. Muitas vezes, você lembra perfeitamente do contexto e do conteúdo do arquivo, mas o nome ou o local exato viram um mistério.
 
-Diariamente milhares de documentos são criados, baixados e compartilhados:
+"Preciso encontrar aquele PDF com o procedimento de instalação que baixei há alguns meses... Cadê?"
 
-- PDFs;
-- planilhas;
-- apresentações;
-- documentos de texto;
-- manuais;
-- procedimentos operacionais;
-- atas;
-- relatórios.
+O BrAIn resolve esse problema combinando indexação inteligente de metadados e o poder da IA local.
 
-Com o tempo, arquivos importantes acabam perdidos em pastas, downloads e diretórios sem uma organização adequada.
+🎯 Objetivo do MVP
+Criar um assistente local leve e eficiente, capaz de:
 
-Muitas vezes o usuário lembra do conteúdo do documento, mas não lembra o nome do arquivo.
+🔍 Monitorar e identificar novos arquivos no computador.
+🗂️ Organizar informações estruturadas e extrair contexto.
+💾 Armazenar metadados de forma segura e local.
+🧠 Permitir buscas inteligentes baseadas em linguagem natural.
+🖥️ Auxiliar o usuário através de uma interface intuitiva.
 
-Exemplo:
-
-> "Preciso encontrar aquele PDF com o procedimento de instalação que baixei há alguns meses."
-
-O BrAIn busca resolver esse problema utilizando indexação inteligente e IA local.
-
----
-
-# Objetivo do MVP
-
-Criar um assistente local capaz de:
-
-- monitorar documentos no computador;
-- identificar novos arquivos;
-- organizar informações dos documentos;
-- armazenar metadados localmente;
-- permitir busca inteligente;
-- auxiliar o usuário através de uma interface simples.
-
----
-
-# Arquitetura
-
-```text
+🏗️ Arquitetura do Sistema
+Plaintext
 BrAIn
-
-├── Interface
-│   └── Aplicação desktop
 │
-├── Core
+├── 🖥️ Interface
+│   └── Aplicação Desktop (GUI)
+│
+├── ⚙️ Core (Lógica de Negócio)
 │   ├── Scanner de arquivos
-│   ├── Processamento
-│   └── Organização
+│   ├── Processador de documentos
+│   └── Organizador
 │
-├── IA Local
+├── 🤖 IA Local
 │   └── Gemma via Ollama
 │
-├── Banco de Dados
-│   └── SQLite
+├── 🗄️ Banco de Dados
+│   └── SQLite (Repositório de Metadados)
 │
-└── Dados
-    └── Documentos e metadados locais
+└── 📁 Dados
+    └── Documentos e vetores locais
 
-**# Tecnologias**
-Backend
-Python
-Programação Orientada a Objetos
-Clean Code
-SQLite
+🛠️ Stack Tecnológico
+
+Backend & Estrutura
+
+Linguagem: Python
+Paradigma: Programação Orientada a Objetos (POO) e Clean Code
+Ambiente & Gestão: uv, Git, GitHub
+
 Inteligência Artificial
-Gemma
-Ollama
-Processamento local de dados
-Interface
-Python Desktop GUI
-Gerenciamento
-Git
-GitHub
-uv
-Princípios do projeto
+Modelo: Gemma (Google)
+Engine: Ollama (Processamento 100% local)
+Banco de Dados & Interface
+Memória Central: SQLite
 
-O desenvolvimento seguirá:
+Frontend: Python Desktop GUI
 
-Código limpo;
-Separação de responsabilidades;
-Arquitetura modular;
-Baixo acoplamento;
-Programação Orientada a Objetos;
-Privacidade dos dados.
-Roadmap
-Fase 1 - Estrutura inicial
+💡 Princípios de Engenharia de Software
+O desenvolvimento deste projeto é guiado pelas melhores práticas de engenharia:
 
-[x] Configuração do projeto
-[x] Ambiente Python com uv
-[x] Estrutura de diretórios
+Código Limpo (Clean Code): Nomes de variáveis descritivos e funções objetivas.
+Arquitetura Modular: Separação clara de responsabilidades.
+Baixo Acoplamento: Módulos independentes e facilmente testáveis.
 
-Fase 2 - Núcleo do sistema
+Privacidade by Design: Nenhum dado sensível sai da máquina do usuário.
 
-[ ] Criar entidade Document
-[ ] Scanner de arquivos
-[ ] Persistência SQLite
-[ ] Cadastro de metadados
+🚀 Roadmap
+Fase 1 - Fundação e Estrutura
+
+[x] Configuração inicial do projeto
+[x] Criação do ambiente isolado Python com uv
+[x] Estruturação modular de diretórios
+
+Fase 2 - Núcleo do Sistema (Core)
+
+[x] Definição da entidade Document
+[ ] Desenvolvimento do Scanner de arquivos
+[ ] Configuração e persistência no banco SQLite
+[ ] Indexação e cadastro de metadados
 
 Fase 3 - Inteligência Artificial
 
-[ ] Integração com Gemma
-[ ] Classificação automática
-[ ] Resumo de documentos
-[ ] Busca inteligente
+[ ] Integração do Ollama/Gemma com o sistema
+[ ] Categorização automática de arquivos
+[ ] Geração de resumos (Summarization)
+[ ] Motor de busca inteligente
 
-Fase 4 - Interface
+Fase 4 - Interface do Usuário (UI)
 
-[ ] Dashboard desktop
-[ ] Lista de documentos
-[ ] Pesquisa
-[ ] Chat assistente
+[ ] Criação do Dashboard Desktop
+[ ] Visualização de lista de documentos
+[ ] Barra de pesquisa inteligente
+[ ] Chat integrado com o assistente
 
-Segurança e privacidade
 
-O BrAIn possui como princípio o processamento local.
+NEW FEATURE
+Fase 5 - Next Level (Integração RAG) 🔮 
 
-Os documentos permanecem no ambiente do usuário, evitando o envio de informações sensíveis para serviços externos.
+[ ] Implementação de RAG (Retrieval-Augmented Generation)
+[ ] Processamento de conteúdo interno dos documentos (Embeddings)
+[ ] Criação de base de dados vetorial local (Vector DB)
+[ ] Chat interativo diretamente com o conteúdo da base de conhecimento ("Converse com seus arquivos")
 
-Status
+🔒 Segurança e Privacidade
+O BrAIn nasceu com o princípio fundamental do processamento estritamente local.
+Isso significa que seus manuais, contratos, planilhas e relatórios permanecem 100% no seu ambiente. A aplicação evita o envio de qualquer informação sensível para APIs externas ou serviços em nuvem, garantindo governança total dos seus dados.
 
-🚧 Projeto em desenvolvimento
+🚧 Status do Projeto
+Em desenvolvimento ativo.
+Este MVP está sendo construído com foco em aprimoramento técnico, aplicação de boas práticas de arquitetura de software e exploração prática de Inteligência Artificial generativa local.
 
-MVP sendo construído com foco em aprendizado, arquitetura de software e aplicação prática de Inteligência Artificial local.
-
-Autor
+👤 Autor
 
 Sandro Monteiro
-
-Desenvolvedor RPA | Automação | IA
+Desenvolvedor RPA
