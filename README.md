@@ -29,25 +29,8 @@ Criar um assistente local leve e eficiente, capaz de:
 🖥️ Auxiliar o usuário através de uma interface intuitiva.
 
 🏗️ Arquitetura do Sistema
-Plaintext
-BrAIn
-│
-├── 🖥️ Interface
-│   └── Aplicação Desktop (GUI)
-│
-├── ⚙️ Core (Lógica de Negócio)
-│   ├── Scanner de arquivos
-│   ├── Processador de documentos
-│   └── Organizador
-│
-├── 🤖 IA Local
-│   └── Gemma via Ollama
-│
-├── 🗄️ Banco de Dados
-│   └── SQLite (Repositório de Metadados)
-│
-└── 📁 Dados
-    └── Documentos e vetores locais
+
+![Visão Geral da Arquitetura do BrAIn](docs/image_a30c1f.jpg)
 
 🛠️ Stack Tecnológico
 
