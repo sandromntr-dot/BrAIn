@@ -29,11 +29,13 @@ class SearchResultsTable(ttk.Frame):
             self,
             orient=tk.VERTICAL,
             command=self.tree.yview,
+            style="Results.Vertical.TScrollbar",
         )
         horizontal_scroll = ttk.Scrollbar(
             self,
             orient=tk.HORIZONTAL,
             command=self.tree.xview,
+            style="Results.Horizontal.TScrollbar",
         )
         self.tree.configure(
             yscrollcommand=vertical_scroll.set,
@@ -47,6 +49,11 @@ class SearchResultsTable(ttk.Frame):
         horizontal_scroll.grid(row=1, column=0, sticky="ew")
         self.columnconfigure(0, weight=1)
         self.rowconfigure(0, weight=1)
+        self.tree.bind("<MouseWheel>", self._scroll_with_mouse)
+
+    def _scroll_with_mouse(self, event):
+        self.tree.yview_scroll(int(-event.delta / 120), "units")
+        return "break"
 
     def set_documents(self, documents):
         self.tree.delete(*self.tree.get_children())

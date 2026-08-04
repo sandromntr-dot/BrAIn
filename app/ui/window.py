@@ -52,6 +52,7 @@ class MainWindow:
             master=self.root,
             value="O resumo gerado pelo Gemma aparecerá aqui.",
         )
+        self.result_count = tk.StringVar(master=self.root, value="0 resultados")
         self._configure_styles()
         self._build()
 
@@ -191,6 +192,16 @@ class MainWindow:
             padding=(10, 9),
             font=("Segoe UI", 9, "bold"),
         )
+        style.configure(
+            "Results.Vertical.TScrollbar",
+            width=18,
+            arrowsize=18,
+        )
+        style.configure(
+            "Results.Horizontal.TScrollbar",
+            width=16,
+            arrowsize=16,
+        )
         style.map(
             "Results.Treeview.Heading",
             background=[("active", "#E8ECF3")],
@@ -283,21 +294,28 @@ class MainWindow:
         search_card.grid(row=2, column=0, sticky="ew", pady=(0, 16))
         search_card.columnconfigure(0, weight=1)
 
-        search_entry = ttk.Entry(
+        self.search_entry = ttk.Entry(
             search_card,
             textvariable=self.query,
             style="Search.TEntry",
         )
-        search_entry.grid(row=0, column=0, sticky="ew", padx=(0, 10))
-        search_entry.bind("<Return>", self.search)
-        search_entry.focus_set()
+        self.search_entry.grid(row=0, column=0, sticky="ew", padx=(0, 10))
+        self.search_entry.bind("<Return>", self.search)
+        self.search_entry.focus_set()
 
-        ttk.Button(
+        self.search_button = ttk.Button(
             search_card,
             text="Buscar documentos",
             command=self.search,
             style="Primary.TButton",
-        ).grid(row=0, column=1)
+        )
+        self.search_button.grid(row=0, column=1)
+        ttk.Button(
+            search_card,
+            text="Limpar",
+            command=self.clear_search,
+            style="Analysis.TButton",
+        ).grid(row=0, column=2, padx=(8, 0))
 
         results_card = ttk.Frame(content, style="Card.TFrame", padding=(18, 16))
         results_card.grid(row=3, column=0, sticky="nsew")
@@ -314,6 +332,11 @@ class MainWindow:
             text="Dê um duplo clique para abrir um arquivo.",
             style="CardHint.TLabel",
         ).grid(row=1, column=0, sticky="w", pady=(2, 12))
+        ttk.Label(
+            results_card,
+            textvariable=self.result_count,
+            style="CardHint.TLabel",
+        ).grid(row=0, column=1, sticky="e", padx=(0, 10))
 
         self.analysis_button = ttk.Button(
             results_card,
@@ -321,7 +344,7 @@ class MainWindow:
             command=self.start_batch_analysis,
             style="Analysis.TButton",
         )
-        self.analysis_button.grid(row=0, column=1, rowspan=2, sticky="e")
+        self.analysis_button.grid(row=1, column=1, sticky="e", padx=(0, 10))
 
         self.pause_analysis_button = ttk.Button(
             results_card,
@@ -330,7 +353,7 @@ class MainWindow:
             style="Analysis.TButton",
         )
         self.pause_analysis_button.grid(
-            row=0, column=2, rowspan=2, sticky="e", padx=(8, 0)
+            row=1, column=2, sticky="e", padx=(8, 0)
         )
         self.pause_analysis_button.state(["disabled"])
 
@@ -341,9 +364,8 @@ class MainWindow:
             style="Analysis.TButton",
         )
         self.selected_analysis_button.grid(
-            row=0,
+            row=1,
             column=3,
-            rowspan=2,
             sticky="e",
             padx=(8, 0),
         )
@@ -389,14 +411,21 @@ class MainWindow:
             font=("Segoe UI", 9),
         ).grid(row=1, column=0, sticky="ew", pady=(3, 0))
 
-        self.results = SearchResultsTable(results_card)
-        self.results.grid(row=3, column=0, columnspan=4, sticky="nsew")
+        workspace = ttk.Frame(results_card, style="Card.TFrame")
+        workspace.grid(row=3, column=0, columnspan=4, sticky="nsew")
+        workspace.columnconfigure(0, weight=3)
+        workspace.columnconfigure(1, weight=2, minsize=280)
+        workspace.rowconfigure(0, weight=1)
+
+        self.results = SearchResultsTable(workspace)
+        self.results.grid(row=0, column=0, sticky="nsew", padx=(0, 12))
         self.results.tree.bind("<Double-1>", self.open_selected_document)
         self.results.tree.bind("<<TreeviewSelect>>", self.show_selected_document)
 
-        detail = ttk.Frame(results_card, style="Card.TFrame")
-        detail.grid(row=4, column=0, columnspan=4, sticky="ew", pady=(14, 0))
-        detail.columnconfigure(1, weight=1)
+        detail = ttk.Frame(workspace, style="Card.TFrame")
+        detail.grid(row=0, column=1, sticky="nsew")
+        detail.columnconfigure(0, weight=1)
+        detail.rowconfigure(0, weight=1)
 
         detail_surface = tk.Frame(
             detail,
@@ -406,7 +435,7 @@ class MainWindow:
             padx=14,
             pady=11,
         )
-        detail_surface.grid(row=0, column=0, sticky="ew")
+        detail_surface.grid(row=0, column=0, sticky="nsew")
         detail_surface.columnconfigure(0, weight=1)
 
         tk.Label(
@@ -432,7 +461,7 @@ class MainWindow:
             foreground=self.MUTED,
             anchor="w",
             justify="left",
-            wraplength=900,
+            wraplength=340,
             font=("Segoe UI", 9),
         ).grid(row=2, column=0, sticky="ew")
 
@@ -602,9 +631,22 @@ class MainWindow:
         ).pack(fill=tk.X, pady=8)
 
     def search(self, _event=None):
-        documents = self.search_service.search(self.query.get())
+        try:
+            documents = self.search_service.search(self.query.get().strip())
+        except Exception as error:
+            self.status.set("Não foi possível realizar a busca")
+            messagebox.showerror("Erro na busca", str(error))
+            return
+
         self.results.set_documents(documents)
-        self.status.set(f"{len(documents)} documento(s) encontrado(s)")
+        count = len(documents)
+        self.result_count.set(f"{count} resultado(s)")
+        self.status.set(f"Busca concluída: {count} documento(s) encontrado(s)")
+
+    def clear_search(self):
+        self.query.set("")
+        self.search()
+        self.search_entry.focus_set()
 
     def start_batch_analysis(self):
         if self.analysis_service is None:
