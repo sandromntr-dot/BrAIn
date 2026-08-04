@@ -94,6 +94,15 @@ class AnalysisServiceTest(unittest.TestCase):
         self.assertIsNone(outcome)
         analyzer.analyze.assert_not_called()
 
+    def test_reports_pending_text_document_count(self):
+        repository = Mock()
+        repository.count_pending_analysis.return_value = 3
+
+        count = AnalysisService(repository, Mock()).pending_count()
+
+        repository.count_pending_analysis.assert_called_once_with(extension=".txt")
+        self.assertEqual(count, 3)
+
 
 if __name__ == "__main__":
     unittest.main()

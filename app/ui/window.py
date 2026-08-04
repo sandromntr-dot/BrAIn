@@ -23,6 +23,12 @@ class MainWindow:
         self.root = root or tk.Tk()
         self.query = tk.StringVar(master=self.root)
         self.status = tk.StringVar(master=self.root, value="Pronto para pesquisar")
+        self.detail_name = tk.StringVar(master=self.root, value="Selecione um documento")
+        self.detail_category = tk.StringVar(master=self.root, value="Sem categoria")
+        self.detail_summary = tk.StringVar(
+            master=self.root,
+            value="O resumo gerado pelo Gemma aparecerá aqui.",
+        )
         self._configure_styles()
         self._build()
 
@@ -74,6 +80,18 @@ class MainWindow:
         style.configure(
             "Status.TLabel",
             background=self.BACKGROUND,
+            foreground=self.MUTED,
+            font=("Segoe UI", 9),
+        )
+        style.configure(
+            "DetailName.TLabel",
+            background="#F8FAFD",
+            foreground=self.TEXT,
+            font=("Segoe UI", 10, "bold"),
+        )
+        style.configure(
+            "DetailText.TLabel",
+            background="#F8FAFD",
             foreground=self.MUTED,
             font=("Segoe UI", 9),
         )
@@ -266,16 +284,69 @@ class MainWindow:
 
         if self.analysis_service is None:
             self.analysis_button.state(["disabled"])
+        else:
+            self._update_analysis_button()
 
         self.results = SearchResultsTable(results_card)
         self.results.grid(row=2, column=0, columnspan=2, sticky="nsew")
         self.results.tree.bind("<Double-1>", self.open_selected_document)
+        self.results.tree.bind("<<TreeviewSelect>>", self.show_selected_document)
+
+        detail = ttk.Frame(results_card, style="Card.TFrame")
+        detail.grid(row=3, column=0, columnspan=2, sticky="ew", pady=(14, 0))
+        detail.columnconfigure(1, weight=1)
+
+        detail_surface = tk.Frame(
+            detail,
+            background="#F8FAFD",
+            highlightbackground=self.BORDER,
+            highlightthickness=1,
+            padx=14,
+            pady=11,
+        )
+        detail_surface.grid(row=0, column=0, sticky="ew")
+        detail_surface.columnconfigure(0, weight=1)
+
+        tk.Label(
+            detail_surface,
+            textvariable=self.detail_name,
+            background="#F8FAFD",
+            foreground=self.TEXT,
+            anchor="w",
+            font=("Segoe UI", 10, "bold"),
+        ).grid(row=0, column=0, sticky="ew")
+        tk.Label(
+            detail_surface,
+            textvariable=self.detail_category,
+            background="#F8FAFD",
+            foreground=self.PRIMARY,
+            anchor="w",
+            font=("Segoe UI", 9, "bold"),
+        ).grid(row=1, column=0, sticky="ew", pady=(3, 2))
+        tk.Label(
+            detail_surface,
+            textvariable=self.detail_summary,
+            background="#F8FAFD",
+            foreground=self.MUTED,
+            anchor="w",
+            justify="left",
+            wraplength=900,
+            font=("Segoe UI", 9),
+        ).grid(row=2, column=0, sticky="ew")
+
+        self.analysis_progress = ttk.Progressbar(
+            content,
+            mode="indeterminate",
+            length=180,
+        )
+        self.analysis_progress.grid(row=4, column=0, sticky="ew", pady=(10, 0))
+        self.analysis_progress.grid_remove()
 
         ttk.Label(
             content,
             textvariable=self.status,
             style="Status.TLabel",
-        ).grid(row=4, column=0, sticky="w", pady=(10, 0))
+        ).grid(row=5, column=0, sticky="w", pady=(8, 0))
 
     def search(self, _event=None):
         documents = self.search_service.search(self.query.get())
@@ -287,6 +358,8 @@ class MainWindow:
             return
 
         self.analysis_button.state(["disabled"])
+        self.analysis_progress.grid()
+        self.analysis_progress.start(12)
         self.status.set("Gemma está analisando o próximo documento TXT...")
         threading.Thread(target=self._analyze_next, daemon=True).start()
 
@@ -299,7 +372,8 @@ class MainWindow:
             self.root.after(0, self._finish_analysis, outcome)
 
     def _finish_analysis(self, outcome):
-        self.analysis_button.state(["!disabled"])
+        self._stop_analysis_progress()
+        self._update_analysis_button()
 
         if outcome is None:
             self.status.set("Nenhum documento TXT pendente de análise")
@@ -307,15 +381,52 @@ class MainWindow:
 
         documents = self.search_service.search(self.query.get())
         self.results.set_documents(documents)
+        document = self.results.select_path(outcome.document.path)
+
+        if document is not None:
+            self._show_document(document)
+        else:
+            self.detail_name.set(outcome.document.name)
+            self.detail_category.set(outcome.analysis.category)
+            self.detail_summary.set(outcome.analysis.summary)
+
         self.status.set(
             f"Análise concluída: {outcome.document.name} — "
             f"{outcome.analysis.category}"
         )
 
     def _finish_analysis_error(self, error):
-        self.analysis_button.state(["!disabled"])
+        self._stop_analysis_progress()
+        self._update_analysis_button()
         self.status.set("Não foi possível concluir a análise")
         messagebox.showerror("Erro na análise com Gemma", str(error))
+
+    def _stop_analysis_progress(self):
+        self.analysis_progress.stop()
+        self.analysis_progress.grid_remove()
+
+    def _update_analysis_button(self):
+        if self.analysis_service is None:
+            return
+
+        pending = self.analysis_service.pending_count()
+        self.analysis_button.configure(text=f"Analisar próximo TXT ({pending})")
+
+        if pending:
+            self.analysis_button.state(["!disabled"])
+        else:
+            self.analysis_button.state(["disabled"])
+
+    def show_selected_document(self, _event=None):
+        document = self.results.selected_document()
+
+        if document is not None:
+            self._show_document(document)
+
+    def _show_document(self, document):
+        self.detail_name.set(document.name)
+        self.detail_category.set(document.category or "Ainda não categorizado")
+        self.detail_summary.set(document.summary or "Este documento ainda não possui resumo.")
 
     def open_selected_document(self, _event=None):
         document = self.results.selected_document()

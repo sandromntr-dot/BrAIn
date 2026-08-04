@@ -179,6 +179,16 @@ class DocumentRepository:
 
         return [self._to_stored_document(row) for row in rows]
 
+    def count_pending_analysis(self, extension=".txt"):
+        with closing(self.database.connect()) as connection:
+            return connection.execute("""
+                SELECT COUNT(*)
+                FROM documents
+                WHERE available = 1
+                  AND processed = 0
+                  AND extension = ? COLLATE NOCASE
+            """, (extension,)).fetchone()[0]
+
     def save_analysis(self, path, summary, category):
         with closing(self.database.connect()) as connection:
             with connection:

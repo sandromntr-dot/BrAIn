@@ -65,6 +65,16 @@ class SearchResultsTable(ttk.Frame):
         selection = self.tree.selection()
         return self._documents.get(selection[0]) if selection else None
 
+    def select_path(self, path):
+        for item, document in self._documents.items():
+            if document.path == path:
+                self.tree.selection_set(item)
+                self.tree.focus(item)
+                self.tree.see(item)
+                return document
+
+        return None
+
     @staticmethod
     def _format_size(size):
         if size is None:

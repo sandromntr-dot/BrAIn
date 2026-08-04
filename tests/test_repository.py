@@ -244,6 +244,7 @@ class DocumentRepositoryTest(unittest.TestCase):
         self.assertTrue(saved)
         self.assertEqual(row, ("Document summary", "Report", 1))
         self.assertEqual(self.repository.pending_analysis(extension=".txt"), [])
+        self.assertEqual(self.repository.count_pending_analysis(extension=".txt"), 0)
 
     def test_does_not_save_analysis_for_unavailable_document(self):
         self.repository.save(Document(self.document_path))

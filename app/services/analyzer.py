@@ -116,3 +116,6 @@ class AnalysisService:
         document = pending[0]
         analysis = self.analyzer.analyze(document)
         return AnalysisOutcome(document=document, analysis=analysis)
+
+    def pending_count(self):
+        return self.repository.count_pending_analysis(extension=".txt")
