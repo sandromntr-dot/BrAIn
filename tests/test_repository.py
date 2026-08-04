@@ -294,6 +294,45 @@ class DocumentRepositoryTest(unittest.TestCase):
         self.assertTrue(analyzed)
         self.assertEqual(recovered, (None, None, 1))
 
+    def test_persists_and_clears_visual_analysis_chunks(self):
+        self.repository.save(Document(self.document_path))
+        self.repository.save_visual_analysis_chunk(
+            self.document_path,
+            0,
+            '{"summary": "Página um", "category": "Relatório"}',
+        )
+        self.repository.save_visual_analysis_chunk(
+            self.document_path,
+            1,
+            '{"summary": "Página dois", "category": "Relatório"}',
+        )
+
+        chunks = self.repository.visual_analysis_chunks(self.document_path)
+        removed = self.repository.clear_visual_analysis_chunks(self.document_path)
+
+        self.assertEqual(list(chunks), [0, 1])
+        self.assertEqual(removed, 2)
+        self.assertEqual(
+            self.repository.visual_analysis_chunks(self.document_path),
+            {},
+        )
+
+    def test_changed_document_discards_old_visual_chunks(self):
+        self.repository.save(Document(self.document_path))
+        self.repository.save_visual_analysis_chunk(
+            self.document_path,
+            0,
+            '{"summary": "Antigo", "category": "Relatório"}',
+        )
+        self.document_path.write_text("changed content", encoding="utf-8")
+
+        self.repository.save(Document(self.document_path))
+
+        self.assertEqual(
+            self.repository.visual_analysis_chunks(self.document_path),
+            {},
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

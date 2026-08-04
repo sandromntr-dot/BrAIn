@@ -62,6 +62,12 @@ class DocumentRepository:
                     int(getattr(document, "processed", False)),
                 ))
 
+                if cursor.rowcount == 1:
+                    connection.execute("""
+                        DELETE FROM visual_analysis_chunks
+                        WHERE document_path = ?
+                    """, (str(document.path),))
+
             return cursor.rowcount == 1
 
     def mark_missing(self, folder, present_paths, unreadable_paths=()):
@@ -230,6 +236,42 @@ class DocumentRepository:
                 """, (message, str(path)))
 
         return cursor.rowcount == 1
+
+    def visual_analysis_chunks(self, path):
+        with closing(self.database.connect()) as connection:
+            rows = connection.execute("""
+                SELECT chunk_index, content
+                FROM visual_analysis_chunks
+                WHERE document_path = ?
+                ORDER BY chunk_index
+            """, (str(path),)).fetchall()
+
+        return {index: content for index, content in rows}
+
+    def save_visual_analysis_chunk(self, path, chunk_index, content):
+        if chunk_index < 0 or not content.strip():
+            raise ValueError("visual chunk must have valid index and content")
+
+        with closing(self.database.connect()) as connection:
+            with connection:
+                connection.execute("""
+                    INSERT INTO visual_analysis_chunks
+                        (document_path, chunk_index, content)
+                    VALUES (?, ?, ?)
+                    ON CONFLICT(document_path, chunk_index) DO UPDATE SET
+                        content = excluded.content,
+                        created_at = datetime('now')
+                """, (str(path), chunk_index, content.strip()))
+
+    def clear_visual_analysis_chunks(self, path):
+        with closing(self.database.connect()) as connection:
+            with connection:
+                cursor = connection.execute("""
+                    DELETE FROM visual_analysis_chunks
+                    WHERE document_path = ?
+                """, (str(path),))
+
+        return cursor.rowcount
 
     @staticmethod
     def _normalized_path(path):

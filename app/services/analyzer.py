@@ -55,14 +55,14 @@ class DocumentAnalyzer:
         self.visual_processor = visual_processor or VisualDocumentProcessor()
         self.visual_gemma_client = visual_gemma_client or gemma_client
 
-    def analyze(self, document):
+    def analyze(self, document, progress_callback=None):
         try:
             content = self.processor.extract(document.path)
         except DocumentProcessingError:
             if not self.visual_processor.supports(document.path):
                 raise
 
-            return self._analyze_visual(document)
+            return self._analyze_visual(document, progress_callback)
 
         prompt = (
             f"Nome do arquivo: {document.name}\n\n"
@@ -108,27 +108,70 @@ class DocumentAnalyzer:
                 "O modelo visual não conseguiu acessar a imagem"
             )
 
-    def _analyze_visual(self, document):
-        visual = self.visual_processor.extract(document.path)
-        scope = f"{len(visual.images)} de {visual.total_pages} página(s)/slide(s)"
-        limitation = (
-            " O documento excede o limite visual; deixe isso claro no resumo."
-            if visual.truncated
-            else ""
-        )
-        prompt = (
-            f"Nome do arquivo: {document.name}\n\n"
-            f"Analise visualmente {scope} deste documento.{limitation} "
-            "Leia os textos visíveis e considere diagramas, tabelas e imagens."
-        )
-        response = self.visual_gemma_client.generate(
-            prompt,
-            system=self.SYSTEM_PROMPT,
-            response_format=self.RESPONSE_SCHEMA,
-            images=visual.images,
-        )
-        analysis = self._parse_response(response.text)
-        self._validate_visual_analysis(analysis)
+    def _analyze_visual(self, document, progress_callback=None):
+        total_pages = self.visual_processor.page_count(document.path)
+
+        if total_pages < 1:
+            raise DocumentAnalysisError("O documento visual não possui páginas")
+
+        cached = self.repository.visual_analysis_chunks(document.path)
+        cached = cached if isinstance(cached, dict) else {}
+        partial_analyses = []
+        prompt_tokens = 0
+        response_tokens = 0
+
+        for index in range(total_pages):
+            if index in cached:
+                analysis = self._parse_response(cached[index])
+            else:
+                if progress_callback:
+                    progress_callback(index + 1, total_pages)
+
+                image = self.visual_processor.extract_page(document.path, index)
+
+                prompt = (
+                    f"Nome do arquivo: {document.name}\n"
+                    f"Página/slide {index + 1} de {total_pages}. "
+                    "Leia os textos visíveis e resuma o conteúdo desta página, "
+                    "considerando diagramas, tabelas e imagens."
+                )
+                response = self.visual_gemma_client.generate(
+                    prompt,
+                    system=self.SYSTEM_PROMPT,
+                    response_format=self.RESPONSE_SCHEMA,
+                    images=[image],
+                )
+                analysis = self._parse_response(response.text)
+                self._validate_visual_analysis(analysis)
+                prompt_tokens += response.prompt_tokens
+                response_tokens += response.response_tokens
+                self.repository.save_visual_analysis_chunk(
+                    document.path,
+                    index,
+                    json.dumps({
+                        "summary": analysis.summary,
+                        "category": analysis.category,
+                    }, ensure_ascii=False),
+                )
+
+            partial_analyses.append(analysis)
+
+        if len(partial_analyses) == 1:
+            analysis = partial_analyses[0]
+        else:
+            partial_text = "\n".join(
+                f"Página/slide {index + 1}: {item.summary}"
+                for index, item in enumerate(partial_analyses)
+            )
+            response = self.gemma_client.generate(
+                "Consolide os resumos parciais abaixo em um resumo do documento "
+                f"{document.name}:\n\n{partial_text}",
+                system=self.SYSTEM_PROMPT,
+                response_format=self.RESPONSE_SCHEMA,
+            )
+            analysis = self._parse_response(response.text)
+            prompt_tokens += response.prompt_tokens
+            response_tokens += response.response_tokens
 
         if not self.repository.save_analysis(
             document.path,
@@ -139,11 +182,13 @@ class DocumentAnalyzer:
                 f"Documento não disponível para atualização: {document.path}"
             )
 
+        self.repository.clear_visual_analysis_chunks(document.path)
+
         return DocumentAnalysis(
             summary=analysis.summary,
             category=analysis.category,
-            prompt_tokens=response.prompt_tokens,
-            response_tokens=response.response_tokens,
+            prompt_tokens=prompt_tokens,
+            response_tokens=response_tokens,
         )
 
     @staticmethod
@@ -213,7 +258,7 @@ class AnalysisService:
 
         return pending[0]
 
-    def analyze_document(self, document):
+    def analyze_document(self, document, progress_callback=None):
         extension = (document.extension or "").casefold()
 
         if extension not in self.SUPPORTED_EXTENSIONS:
@@ -222,7 +267,13 @@ class AnalysisService:
             )
 
         try:
-            analysis = self.analyzer.analyze(document)
+            if progress_callback is None:
+                analysis = self.analyzer.analyze(document)
+            else:
+                analysis = self.analyzer.analyze(
+                    document,
+                    progress_callback=progress_callback,
+                )
         except Exception as error:
             self.repository.save_analysis_error(document.path, error)
             raise

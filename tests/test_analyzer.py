@@ -68,11 +68,8 @@ class DocumentAnalyzerTest(unittest.TestCase):
         self.processor.extract.side_effect = DocumentProcessingError("OCR")
         visual_processor = Mock()
         visual_processor.supports.return_value = True
-        visual_processor.extract.return_value = SimpleNamespace(
-            images=(b"slide",),
-            total_pages=1,
-            truncated=False,
-        )
+        visual_processor.page_count.return_value = 1
+        visual_processor.extract_page.return_value = b"slide"
         self.client.generate.return_value = SimpleNamespace(
             text=json.dumps({"summary": "Resumo visual.", "category": "Slide"}),
             prompt_tokens=30,
@@ -92,18 +89,15 @@ class DocumentAnalyzerTest(unittest.TestCase):
         self.assertEqual(result.summary, "Resumo visual.")
         self.assertEqual(
             self.client.generate.call_args.kwargs["images"],
-            (b"slide",),
+            [b"slide"],
         )
 
     def test_rejects_visual_response_that_did_not_receive_image(self):
         self.processor.extract.side_effect = DocumentProcessingError("OCR")
         visual_processor = Mock()
         visual_processor.supports.return_value = True
-        visual_processor.extract.return_value = SimpleNamespace(
-            images=(b"slide",),
-            total_pages=1,
-            truncated=False,
-        )
+        visual_processor.page_count.return_value = 1
+        visual_processor.extract_page.return_value = b"slide"
         visual_client = Mock()
         visual_client.generate.return_value = SimpleNamespace(
             text=json.dumps({
@@ -125,6 +119,56 @@ class DocumentAnalyzerTest(unittest.TestCase):
             analyzer.analyze(self.document)
 
         self.repository.save_analysis.assert_not_called()
+
+    def test_resumes_visual_analysis_from_saved_page(self):
+        self.processor.extract.side_effect = DocumentProcessingError("OCR")
+        visual_processor = Mock()
+        visual_processor.supports.return_value = True
+        visual_processor.page_count.return_value = 2
+        visual_processor.extract_page.return_value = b"second-page"
+        self.repository.visual_analysis_chunks.return_value = {
+            0: json.dumps({
+                "summary": "Primeira página já analisada.",
+                "category": "Relatório",
+            })
+        }
+        visual_client = Mock()
+        visual_client.generate.return_value = SimpleNamespace(
+            text=json.dumps({
+                "summary": "Segunda página.",
+                "category": "Relatório",
+            }),
+            prompt_tokens=12,
+            response_tokens=6,
+        )
+        self.client.generate.return_value = SimpleNamespace(
+            text=json.dumps({
+                "summary": "Resumo consolidado.",
+                "category": "Relatório",
+            }),
+            prompt_tokens=15,
+            response_tokens=7,
+        )
+        self.repository.save_analysis.return_value = True
+        analyzer = DocumentAnalyzer(
+            self.client,
+            self.repository,
+            self.processor,
+            visual_processor,
+            visual_gemma_client=visual_client,
+        )
+
+        result = analyzer.analyze(self.document)
+
+        self.assertEqual(result.summary, "Resumo consolidado.")
+        visual_processor.extract_page.assert_called_once_with(
+            self.document.path,
+            1,
+        )
+        self.repository.save_visual_analysis_chunk.assert_called_once()
+        self.repository.clear_visual_analysis_chunks.assert_called_once_with(
+            self.document.path
+        )
 
 
 class AnalysisServiceTest(unittest.TestCase):

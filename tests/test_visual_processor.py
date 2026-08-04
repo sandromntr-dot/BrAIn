@@ -50,6 +50,18 @@ class VisualDocumentProcessorTest(unittest.TestCase):
         self.assertEqual(visual.total_pages, 1)
         self.assertTrue(visual.images[0].startswith(b"\xff\xd8"))
 
+    def test_reads_visual_pages_on_demand(self):
+        path = self.root / "slides.pptx"
+
+        with ZipFile(path, "w") as archive:
+            archive.writestr("ppt/media/image1.png", b"first")
+            archive.writestr("ppt/media/image2.png", b"second")
+
+        processor = VisualDocumentProcessor(max_pages=1)
+
+        self.assertEqual(processor.page_count(path), 2)
+        self.assertEqual(processor.extract_page(path, 1), b"second")
+
 
 if __name__ == "__main__":
     unittest.main()

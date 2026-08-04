@@ -33,6 +33,17 @@ class Database:
                         analysis_failed_at TEXT
                     );
                 """)
+                connection.execute("""
+                    CREATE TABLE IF NOT EXISTS visual_analysis_chunks (
+                        document_path TEXT NOT NULL,
+                        chunk_index INTEGER NOT NULL,
+                        content TEXT NOT NULL,
+                        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+                        PRIMARY KEY (document_path, chunk_index),
+                        FOREIGN KEY (document_path) REFERENCES documents(path)
+                            ON DELETE CASCADE
+                    );
+                """)
 
                 columns = {
                     row[1]

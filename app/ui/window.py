@@ -36,6 +36,7 @@ class MainWindow:
         self._batch_stop_requested = threading.Event()
         self._batch_clock_token = 0
         self._batch_events = queue.Queue()
+        self._batch_visual_progress = None
         self.query = tk.StringVar(master=self.root)
         self.status = tk.StringVar(master=self.root, value="Pronto para pesquisar")
         self.analysis_activity = tk.StringVar(
@@ -695,7 +696,12 @@ class MainWindow:
             )
 
             try:
-                outcome = self.analysis_service.analyze_document(document)
+                outcome = self.analysis_service.analyze_document(
+                    document,
+                    progress_callback=lambda current, total: self._batch_events.put(
+                        ("visual_progress", document.name, current, total)
+                    ),
+                )
             except Exception as error:
                 failed += 1
                 self._batch_events.put(
@@ -726,11 +732,21 @@ class MainWindow:
                 self._update_batch_progress(*payload)
             elif kind == "finished":
                 self._finish_batch_analysis(*payload)
+            elif kind == "visual_progress":
+                self._update_visual_progress(*payload)
 
         if self._batch_running:
             self.root.after(100, self._poll_batch_events)
 
+    def _update_visual_progress(self, document_name, current, total):
+        self._batch_visual_progress = (current, total)
+        self.analysis_activity.set("● Gemma Vision analisando")
+        self.analysis_activity_details.set(
+            f"Arquivo: {document_name}\nPágina/slide {current} de {total}"
+        )
+
     def _begin_batch_document(self, document, completed, failed):
+        self._batch_visual_progress = None
         self._batch_clock_token += 1
         token = self._batch_clock_token
         started_at = time.monotonic()
@@ -770,6 +786,12 @@ class MainWindow:
             f"Arquivo: {document_name}\n"
             f"Tempo: {minutes:02d}:{seconds:02d}  •  Sucessos: {completed}  •  "
             f"Falhas: {failed}  •  Pendentes: {pending}"
+            + (
+                f"  •  Página/slide: {self._batch_visual_progress[0]} de "
+                f"{self._batch_visual_progress[1]}"
+                if self._batch_visual_progress
+                else ""
+            )
         )
         self.root.after(
             1000,

@@ -56,6 +56,8 @@ Atualmente o BrAIn já é capaz de:
 - ✅ Extrair conteúdo de arquivos TXT, DOCX, PDFs textuais, CSV, BPMN e PPTX.
 - ✅ Analisar imagens, PDFs digitalizados e PPTX baseados em imagens com Gemma
   Vision através do Ollama local.
+- ✅ Processar documentos visuais página a página, com checkpoints SQLite e
+  retomada sem repetir páginas concluídas.
 - ✅ Gerar resumos e categorias com Gemma 4 através do Ollama local.
 - ✅ Processar automaticamente os documentos pendentes, com pausa, retomada e
   tolerância a falhas, ou analisar um documento selecionado.
@@ -134,6 +136,10 @@ texto extraível, o BrAIn envia suas páginas ou imagens ao Gemma Vision atravé
 Ollama. Cada resultado é persistido imediatamente; arquivos com erro são
 registrados e ignorados pela execução automática seguinte.
 
+Documentos visuais são processados uma página ou slide por vez. O resumo parcial
+de cada página é salvo no SQLite e reutilizado em uma nova tentativa caso a
+aplicação seja encerrada antes da consolidação final.
+
 Para executar os testes automatizados:
 
 ```powershell
@@ -181,6 +187,7 @@ O desenvolvimento deste projeto é guiado pelas melhores práticas de engenharia
 - [x] Análise visual de imagens, PDFs digitalizados e PPTX baseados em imagens
 - [x] Reconhecimento visual de PDFs digitalizados com Gemma Vision
 - [x] Processamento em lote com progresso, pausa e controle de falhas
+- [x] Checkpoints e retomada da análise visual por página/slide
 - [ ] Busca semântica
 
 ### Fase 4 - Interface Desktop
@@ -230,12 +237,12 @@ Versão atual: **MVP em desenvolvimento ativo**
 
 ### Em desenvolvimento
 
-- Processamento visual em blocos para documentos extensos
+- Aprimoramento da pausa durante documentos visuais extensos
 - Busca semântica e RAG
 
 ### Limitações atuais
 
-- A análise visual inicial considera até 20 páginas ou slides por documento.
+- A análise visual de documentos extensos pode levar bastante tempo em CPU.
 - O formato binário antigo `.ppt` exige conversão prévia para `.pptx` ou `.pdf`.
 - A análise com Gemma pode levar alguns minutos quando executada somente em CPU.
 - O conteúdo enviado ao modelo é limitado a 6.000 caracteres por documento.

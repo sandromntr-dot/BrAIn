@@ -48,6 +48,68 @@ class VisualDocumentProcessor:
             f"Formato visual ainda não suportado: {extension or 'sem extensão'}"
         )
 
+    def page_count(self, path):
+        path = Path(path)
+        extension = path.suffix.casefold()
+
+        if extension in self.IMAGE_EXTENSIONS:
+            return 1
+
+        if extension == ".pdf":
+            try:
+                with pymupdf.open(path) as document:
+                    if document.needs_pass:
+                        raise DocumentProcessingError(
+                            f"PDF protegido por senha: {path}"
+                        )
+                    return document.page_count
+            except DocumentProcessingError:
+                raise
+            except (OSError, RuntimeError, ValueError) as error:
+                raise DocumentProcessingError(
+                    f"Não foi possível ler o PDF {path}: {error}"
+                ) from error
+
+        if extension == ".pptx":
+            return len(self._pptx_media(path))
+
+        raise DocumentProcessingError(
+            f"Formato visual ainda não suportado: {extension or 'sem extensão'}"
+        )
+
+    def extract_page(self, path, page_index):
+        path = Path(path)
+        total_pages = self.page_count(path)
+
+        if page_index < 0 or page_index >= total_pages:
+            raise IndexError("visual page index is out of range")
+
+        extension = path.suffix.casefold()
+
+        if extension in self.IMAGE_EXTENSIONS:
+            return self._extract_image(path).images[0]
+
+        if extension == ".pdf":
+            try:
+                with pymupdf.open(path) as document:
+                    page = document.load_page(page_index)
+                    pixmap = page.get_pixmap(dpi=self.pdf_dpi, alpha=False)
+                    return pixmap.tobytes("jpeg", jpg_quality=80)
+            except (OSError, RuntimeError, ValueError) as error:
+                raise DocumentProcessingError(
+                    f"Não foi possível renderizar a página do PDF {path}: {error}"
+                ) from error
+
+        media = self._pptx_media(path)
+
+        try:
+            with ZipFile(path) as archive:
+                return archive.read(media[page_index][1])
+        except (OSError, BadZipFile) as error:
+            raise DocumentProcessingError(
+                f"Não foi possível ler o slide do PPTX {path}: {error}"
+            ) from error
+
     @staticmethod
     def _extract_image(path):
         try:
@@ -96,17 +158,10 @@ class VisualDocumentProcessor:
         )
 
     def _extract_pptx(self, path):
+        media = self._pptx_media(path)
+
         try:
             with ZipFile(path) as archive:
-                media = []
-
-                for info in archive.infolist():
-                    match = self.MEDIA_PATTERN.fullmatch(info.filename)
-
-                    if match and Path(info.filename).suffix.casefold() in self.IMAGE_EXTENSIONS:
-                        media.append((int(match.group(1)), info))
-
-                media.sort(key=lambda item: item[0])
                 total_pages = len(media)
                 images = tuple(
                     archive.read(info)
@@ -127,3 +182,31 @@ class VisualDocumentProcessor:
             total_pages=total_pages,
             truncated=total_pages > self.max_pages,
         )
+
+    def _pptx_media(self, path):
+        try:
+            with ZipFile(path) as archive:
+                media = []
+
+                for info in archive.infolist():
+                    match = self.MEDIA_PATTERN.fullmatch(info.filename)
+
+                    if (
+                        match
+                        and Path(info.filename).suffix.casefold()
+                        in self.IMAGE_EXTENSIONS
+                    ):
+                        media.append((int(match.group(1)), info))
+        except (OSError, BadZipFile) as error:
+            raise DocumentProcessingError(
+                f"Não foi possível extrair imagens do PPTX {path}: {error}"
+            ) from error
+
+        media.sort(key=lambda item: item[0])
+
+        if not media:
+            raise DocumentProcessingError(
+                f"O PPTX não contém imagens compatíveis: {path}"
+            )
+
+        return media
