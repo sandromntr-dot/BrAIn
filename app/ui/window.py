@@ -478,8 +478,15 @@ class MainWindow:
 
     def _show_document(self, document):
         self.detail_name.set(document.name)
-        self.detail_category.set(document.category or "Ainda não categorizado")
-        self.detail_summary.set(document.summary or "Este documento ainda não possui resumo.")
+
+        if document.analysis_error:
+            self.detail_category.set("Falha na análise — selecione para tentar novamente")
+            self.detail_summary.set(document.analysis_error)
+        else:
+            self.detail_category.set(document.category or "Ainda não categorizado")
+            self.detail_summary.set(
+                document.summary or "Este documento ainda não possui resumo."
+            )
 
     def open_selected_document(self, _event=None):
         document = self.results.selected_document()

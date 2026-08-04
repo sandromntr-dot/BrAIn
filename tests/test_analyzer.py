@@ -151,6 +151,26 @@ class AnalysisServiceTest(unittest.TestCase):
 
         self.assertFalse(service.supports(document))
 
+    def test_persists_failure_and_allows_queue_to_continue(self):
+        document = SimpleNamespace(
+            name="scan.pdf",
+            path=Path("scan.pdf"),
+            extension=".pdf",
+            available=True,
+        )
+        repository = Mock()
+        analyzer = Mock()
+        analyzer.analyze.side_effect = RuntimeError("OCR required")
+        service = AnalysisService(repository, analyzer)
+
+        with self.assertRaisesRegex(RuntimeError, "OCR required"):
+            service.analyze_document(document)
+
+        repository.save_analysis_error.assert_called_once_with(
+            document.path,
+            analyzer.analyze.side_effect,
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

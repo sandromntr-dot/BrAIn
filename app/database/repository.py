@@ -26,9 +26,13 @@ class DocumentRepository:
                         processed,
                         indexed_at,
                         available,
-                        missing_at
+                        missing_at,
+                        analysis_error,
+                        analysis_failed_at
                     )
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), 1, NULL)
+                    VALUES (
+                        ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), 1, NULL, NULL, NULL
+                    )
                     ON CONFLICT(path) DO UPDATE SET
                         name = excluded.name,
                         extension = excluded.extension,
@@ -39,7 +43,9 @@ class DocumentRepository:
                         processed = 0,
                         indexed_at = datetime('now'),
                         available = 1,
-                        missing_at = NULL
+                        missing_at = NULL,
+                        analysis_error = NULL,
+                        analysis_failed_at = NULL
                     WHERE documents.name IS NOT excluded.name
                        OR documents.extension IS NOT excluded.extension
                        OR documents.size IS NOT excluded.size
@@ -125,7 +131,9 @@ class DocumentRepository:
                     processed,
                     indexed_at,
                     available,
-                    missing_at
+                    missing_at,
+                    analysis_error,
+                    analysis_failed_at
                 FROM documents
                 WHERE available = 1
                   AND (
@@ -168,10 +176,13 @@ class DocumentRepository:
                     processed,
                     indexed_at,
                     available,
-                    missing_at
+                    missing_at,
+                    analysis_error,
+                    analysis_failed_at
                 FROM documents
                 WHERE available = 1
                   AND processed = 0
+                  AND analysis_error IS NULL
                   AND extension = ? COLLATE NOCASE
                 ORDER BY indexed_at, id
                 LIMIT ?
@@ -186,6 +197,7 @@ class DocumentRepository:
                 FROM documents
                 WHERE available = 1
                   AND processed = 0
+                  AND analysis_error IS NULL
                   AND extension = ? COLLATE NOCASE
             """, (extension,)).fetchone()[0]
 
@@ -194,9 +206,28 @@ class DocumentRepository:
             with connection:
                 cursor = connection.execute("""
                     UPDATE documents
-                    SET summary = ?, category = ?, processed = 1
+                    SET summary = ?,
+                        category = ?,
+                        processed = 1,
+                        analysis_error = NULL,
+                        analysis_failed_at = NULL
                     WHERE path = ? AND available = 1
                 """, (summary, category, str(path)))
+
+        return cursor.rowcount == 1
+
+    def save_analysis_error(self, path, error):
+        message = str(error).strip()[:1000] or "Falha de análise sem detalhes"
+
+        with closing(self.database.connect()) as connection:
+            with connection:
+                cursor = connection.execute("""
+                    UPDATE documents
+                    SET analysis_error = ?,
+                        analysis_failed_at = datetime('now'),
+                        processed = 0
+                    WHERE path = ? AND available = 1
+                """, (message, str(path)))
 
         return cursor.rowcount == 1
 
@@ -223,4 +254,6 @@ class DocumentRepository:
             indexed_at=row[9],
             available=bool(row[10]),
             missing_at=row[11],
+            analysis_error=row[12],
+            analysis_failed_at=row[13],
         )

@@ -131,7 +131,12 @@ class AnalysisService:
                 f"Formato não suportado para análise: {document.extension}"
             )
 
-        analysis = self.analyzer.analyze(document)
+        try:
+            analysis = self.analyzer.analyze(document)
+        except Exception as error:
+            self.repository.save_analysis_error(document.path, error)
+            raise
+
         return AnalysisOutcome(document=document, analysis=analysis)
 
     def supports(self, document):

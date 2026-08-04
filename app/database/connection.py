@@ -28,7 +28,9 @@ class Database:
                         processed INTEGER NOT NULL DEFAULT 0,
                         indexed_at TEXT NOT NULL,
                         available INTEGER NOT NULL DEFAULT 1,
-                        missing_at TEXT
+                        missing_at TEXT,
+                        analysis_error TEXT,
+                        analysis_failed_at TEXT
                     );
                 """)
 
@@ -47,4 +49,16 @@ class Database:
                     connection.execute("""
                         ALTER TABLE documents
                         ADD COLUMN missing_at TEXT
+                    """)
+
+                if "analysis_error" not in columns:
+                    connection.execute("""
+                        ALTER TABLE documents
+                        ADD COLUMN analysis_error TEXT
+                    """)
+
+                if "analysis_failed_at" not in columns:
+                    connection.execute("""
+                        ALTER TABLE documents
+                        ADD COLUMN analysis_failed_at TEXT
                     """)

@@ -16,3 +16,5 @@ class StoredDocument:
     indexed_at: str
     available: bool
     missing_at: str | None
+    analysis_error: str | None
+    analysis_failed_at: str | None

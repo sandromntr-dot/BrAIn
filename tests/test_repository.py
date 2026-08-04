@@ -179,6 +179,8 @@ class DocumentRepositoryTest(unittest.TestCase):
 
         self.assertIn("available", columns)
         self.assertIn("missing_at", columns)
+        self.assertIn("analysis_error", columns)
+        self.assertIn("analysis_failed_at", columns)
 
     def test_searches_available_documents_by_metadata(self):
         matching_path = self.root / "Architecture Guide.PDF"
@@ -258,6 +260,39 @@ class DocumentRepositoryTest(unittest.TestCase):
         )
 
         self.assertFalse(saved)
+
+    def test_persists_analysis_error_and_removes_document_from_queue(self):
+        self.repository.save(Document(self.document_path))
+
+        saved = self.repository.save_analysis_error(
+            self.document_path,
+            "PDF requires OCR",
+        )
+        row = self.fetch_one("""
+            SELECT analysis_error, analysis_failed_at, processed
+            FROM documents
+            WHERE path = ?
+        """, (str(self.document_path),))
+
+        self.assertTrue(saved)
+        self.assertEqual(row[0], "PDF requires OCR")
+        self.assertIsNotNone(row[1])
+        self.assertEqual(row[2], 0)
+        self.assertEqual(self.repository.pending_analysis(extension=".txt"), [])
+
+        analyzed = self.repository.save_analysis(
+            self.document_path,
+            "Summary",
+            "Category",
+        )
+        recovered = self.fetch_one("""
+            SELECT analysis_error, analysis_failed_at, processed
+            FROM documents
+            WHERE path = ?
+        """, (str(self.document_path),))
+
+        self.assertTrue(analyzed)
+        self.assertEqual(recovered, (None, None, 1))
 
 
 if __name__ == "__main__":
