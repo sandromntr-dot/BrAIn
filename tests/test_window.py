@@ -69,5 +69,30 @@ class SearchInteractionTest(unittest.TestCase):
         )
 
 
+class DashboardInteractionTest(unittest.TestCase):
+
+    def test_refreshes_dashboard_values(self):
+        statistics = {
+            "available": 20,
+            "analyzed": 8,
+            "pending": 10,
+            "failed": 2,
+            "unavailable": 3,
+        }
+        window = MainWindow.__new__(MainWindow)
+        window.dashboard_service = Mock()
+        window.dashboard_service.statistics.return_value = statistics
+        window.dashboard_values = {key: Mock() for key in statistics}
+        window.unavailable_label = Mock()
+
+        window._refresh_dashboard()
+
+        for key, value in statistics.items():
+            window.dashboard_values[key].set.assert_called_once_with(str(value))
+        window.unavailable_label.configure.assert_called_once_with(
+            text="Indisponíveis: 3"
+        )
+
+
 if __name__ == "__main__":
     unittest.main()

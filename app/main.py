@@ -3,6 +3,7 @@ from app.core.config import Config
 from app.database.connection import Database
 from app.database.repository import DocumentRepository
 from app.services.analyzer import AnalysisService, DocumentAnalyzer
+from app.services.dashboard import DashboardService
 from app.services.folders import FolderSettingsService
 from app.services.indexer import Indexer
 from app.services.search import SearchService
@@ -30,6 +31,10 @@ def main():
         SearchService(repository),
         analysis_service,
         folder_service=folder_service,
+        dashboard_service=DashboardService(
+            repository,
+            AnalysisService.SUPPORTED_EXTENSIONS,
+        ),
     )
     window.run()
 

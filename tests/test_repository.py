@@ -333,6 +333,26 @@ class DocumentRepositoryTest(unittest.TestCase):
             {},
         )
 
+    def test_reports_dashboard_statistics(self):
+        analyzed_path = self.root / "analyzed.txt"
+        pending_path = self.root / "pending.txt"
+        failed_path = self.root / "failed.txt"
+
+        for path in (analyzed_path, pending_path, failed_path):
+            path.write_text("content", encoding="utf-8")
+            self.repository.save(Document(path))
+
+        self.repository.save_analysis(analyzed_path, "Summary", "Report")
+        self.repository.save_analysis_error(failed_path, "Model error")
+
+        statistics = self.repository.statistics((".txt", ".pdf"))
+
+        self.assertEqual(statistics["available"], 3)
+        self.assertEqual(statistics["analyzed"], 1)
+        self.assertEqual(statistics["pending"], 1)
+        self.assertEqual(statistics["failed"], 1)
+        self.assertEqual(statistics["unavailable"], 0)
+
 
 if __name__ == "__main__":
     unittest.main()

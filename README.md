@@ -62,6 +62,7 @@ Atualmente o BrAIn já é capaz de:
 - ✅ Processar automaticamente os documentos pendentes, com pausa, retomada e
   tolerância a falhas, ou analisar um documento selecionado.
 - ✅ Pesquisar e visualizar resultados em uma interface Tkinter.
+- ✅ Exibir dashboard compacto com indicadores de disponibilidade e análise.
 - ✅ Modelagem orientada a objetos utilizando a entidade `Document`.
 - ✅ Testes automatizados para scanner, indexador, persistência, extração e IA.
 - ✅ Arquitetura modular preparada para expansão.
@@ -196,7 +197,7 @@ O desenvolvimento deste projeto é guiado pelas melhores práticas de engenharia
 - [x] Exibição de resumo e categoria
 - [x] Análise do documento selecionado
 - [x] Monitor de atividade da análise em lote
-- [ ] Dashboard
+- [x] Dashboard de documentos e análises
 - [ ] Histórico
 - [ ] Estatísticas
 

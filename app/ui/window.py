@@ -27,10 +27,12 @@ class MainWindow:
         analysis_service=None,
         root=None,
         folder_service=None,
+        dashboard_service=None,
     ):
         self.search_service = search_service
         self.analysis_service = analysis_service
         self.folder_service = folder_service
+        self.dashboard_service = dashboard_service
         self.root = root or tk.Tk()
         self._batch_running = False
         self._batch_stop_requested = threading.Event()
@@ -54,6 +56,10 @@ class MainWindow:
             value="O resumo gerado pelo Gemma aparecerá aqui.",
         )
         self.result_count = tk.StringVar(master=self.root, value="0 resultados")
+        self.dashboard_values = {
+            key: tk.StringVar(master=self.root, value="0")
+            for key in ("available", "analyzed", "pending", "failed", "unavailable")
+        }
         self._configure_styles()
         self._build()
 
@@ -525,6 +531,8 @@ class MainWindow:
         else:
             self._refresh_folder_summary()
 
+        self._build_dashboard(sidebar)
+
         ai_card = tk.Frame(
             sidebar,
             background="#E4E7FF",
@@ -559,6 +567,84 @@ class MainWindow:
             font=("Segoe UI", 8),
         ).pack(fill=tk.X)
 
+    def _build_dashboard(self, sidebar):
+        dashboard = tk.Frame(sidebar, background="#EEF2F7")
+        dashboard.pack(fill=tk.X, pady=(16, 12))
+        tk.Label(
+            dashboard,
+            text="VISÃO GERAL",
+            background="#EEF2F7",
+            foreground=self.MUTED,
+            anchor="w",
+            font=("Segoe UI", 8, "bold"),
+        ).grid(row=0, column=0, columnspan=2, sticky="ew", pady=(0, 6))
+
+        metrics = (
+            ("available", "Disponíveis"),
+            ("analyzed", "Analisados"),
+            ("pending", "Pendentes"),
+            ("failed", "Falhas"),
+        )
+
+        for index, (key, label) in enumerate(metrics):
+            card = tk.Frame(
+                dashboard,
+                background=self.SURFACE,
+                highlightbackground=self.BORDER,
+                highlightthickness=1,
+                padx=9,
+                pady=7,
+            )
+            card.grid(
+                row=1 + index // 2,
+                column=index % 2,
+                sticky="nsew",
+                padx=(0, 4) if index % 2 == 0 else (4, 0),
+                pady=3,
+            )
+            tk.Label(
+                card,
+                textvariable=self.dashboard_values[key],
+                background=self.SURFACE,
+                foreground=self.PRIMARY if key != "failed" else "#C2414B",
+                font=("Segoe UI", 14, "bold"),
+            ).pack(anchor="w")
+            tk.Label(
+                card,
+                text=label,
+                background=self.SURFACE,
+                foreground=self.MUTED,
+                font=("Segoe UI", 8),
+            ).pack(anchor="w")
+
+        dashboard.columnconfigure(0, weight=1)
+        dashboard.columnconfigure(1, weight=1)
+        self.unavailable_label = tk.Label(
+            dashboard,
+            background="#EEF2F7",
+            foreground=self.MUTED,
+            anchor="w",
+            font=("Segoe UI", 8),
+        )
+        self.unavailable_label.grid(
+            row=3, column=0, columnspan=2, sticky="ew", pady=(5, 0)
+        )
+        self._refresh_dashboard()
+
+    def _refresh_dashboard(self):
+        if self.dashboard_service is None:
+            statistics = {key: 0 for key in self.dashboard_values}
+        else:
+            statistics = self.dashboard_service.statistics()
+
+        for key, variable in self.dashboard_values.items():
+            variable.set(str(statistics.get(key, 0)))
+
+        if hasattr(self, "unavailable_label"):
+            self.unavailable_label.configure(
+                text=f"Indisponíveis: {statistics.get('unavailable', 0)}"
+            )
+
     def _refresh_folder_summary(self, settings=None):
         if self.folder_service is None:
             return
@@ -587,11 +673,11 @@ class MainWindow:
             self._render_folder_message("Nenhuma pasta configurada")
             return
 
-        for name, path in folders[:6]:
+        for name, path in folders[:3]:
             self._render_folder_item(name, path)
 
-        if len(folders) > 6:
-            self._render_folder_message(f"+ {len(folders) - 6} outra(s) pasta(s)")
+        if len(folders) > 3:
+            self._render_folder_message(f"+ {len(folders) - 3} outra(s) pasta(s)")
 
     def _render_folder_item(self, name, path):
         item = tk.Frame(
@@ -827,6 +913,7 @@ class MainWindow:
         self.pause_analysis_button.state(["disabled"])
         self._update_analysis_button()
         self.results.set_documents(self.search_service.search(self.query.get()))
+        self._refresh_dashboard()
         prefix = (
             "Análise pausada com segurança"
             if paused
@@ -887,6 +974,7 @@ class MainWindow:
 
         documents = self.search_service.search(self.query.get())
         self.results.set_documents(documents)
+        self._refresh_dashboard()
         document = self.results.select_path(outcome.document.path)
 
         if document is not None:

@@ -273,6 +273,38 @@ class DocumentRepository:
 
         return cursor.rowcount
 
+    def statistics(self, supported_extensions=()):
+        extensions = tuple(extension.casefold() for extension in supported_extensions)
+        placeholders = ", ".join("?" for _ in extensions) or "NULL"
+        pending_condition = (
+            f"lower(extension) IN ({placeholders})"
+            if extensions
+            else "0"
+        )
+
+        with closing(self.database.connect()) as connection:
+            row = connection.execute(f"""
+                SELECT
+                    SUM(CASE WHEN available = 1 THEN 1 ELSE 0 END),
+                    SUM(CASE WHEN available = 1 AND processed = 1 THEN 1 ELSE 0 END),
+                    SUM(CASE WHEN available = 1 AND processed = 0
+                                  AND analysis_error IS NULL
+                                  AND {pending_condition}
+                             THEN 1 ELSE 0 END),
+                    SUM(CASE WHEN available = 1 AND analysis_error IS NOT NULL
+                             THEN 1 ELSE 0 END),
+                    SUM(CASE WHEN available = 0 THEN 1 ELSE 0 END)
+                FROM documents
+            """, extensions).fetchone()
+
+        return {
+            "available": row[0] or 0,
+            "analyzed": row[1] or 0,
+            "pending": row[2] or 0,
+            "failed": row[3] or 0,
+            "unavailable": row[4] or 0,
+        }
+
     @staticmethod
     def _normalized_path(path):
         return str(Path(path).resolve(strict=False)).casefold()
