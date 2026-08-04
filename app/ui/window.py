@@ -277,10 +277,25 @@ class MainWindow:
         self.analysis_button = ttk.Button(
             results_card,
             text="Analisar próximo documento",
-            command=self.start_analysis,
+            command=self.start_next_analysis,
             style="Analysis.TButton",
         )
         self.analysis_button.grid(row=0, column=1, rowspan=2, sticky="e")
+
+        self.selected_analysis_button = ttk.Button(
+            results_card,
+            text="Analisar selecionado",
+            command=self.start_selected_analysis,
+            style="Analysis.TButton",
+        )
+        self.selected_analysis_button.grid(
+            row=0,
+            column=2,
+            rowspan=2,
+            sticky="e",
+            padx=(8, 0),
+        )
+        self.selected_analysis_button.state(["disabled"])
 
         if self.analysis_service is None:
             self.analysis_button.state(["disabled"])
@@ -353,19 +368,39 @@ class MainWindow:
         self.results.set_documents(documents)
         self.status.set(f"{len(documents)} documento(s) encontrado(s)")
 
-    def start_analysis(self):
+    def start_next_analysis(self):
         if self.analysis_service is None:
             return
 
+        self._start_analysis()
+
+    def start_selected_analysis(self):
+        document = self.results.selected_document()
+
+        if not self.analysis_service.supports(document):
+            return
+
+        self._start_analysis(document)
+
+    def _start_analysis(self, document=None):
         self.analysis_button.state(["disabled"])
+        self.selected_analysis_button.state(["disabled"])
         self.analysis_progress.grid()
         self.analysis_progress.start(12)
-        self.status.set("Gemma está analisando o próximo documento...")
-        threading.Thread(target=self._analyze_next, daemon=True).start()
+        target = document.name if document is not None else "o próximo documento"
+        self.status.set(f"Gemma está analisando {target}...")
+        threading.Thread(
+            target=self._analyze_document,
+            args=(document,),
+            daemon=True,
+        ).start()
 
-    def _analyze_next(self):
+    def _analyze_document(self, document):
         try:
-            outcome = self.analysis_service.analyze_next()
+            if document is None:
+                outcome = self.analysis_service.analyze_next()
+            else:
+                outcome = self.analysis_service.analyze_document(document)
         except Exception as error:
             self.root.after(0, self._finish_analysis_error, error)
         else:
@@ -417,11 +452,29 @@ class MainWindow:
         else:
             self.analysis_button.state(["disabled"])
 
+        self._update_selected_analysis_button()
+
     def show_selected_document(self, _event=None):
         document = self.results.selected_document()
 
         if document is not None:
             self._show_document(document)
+            self._update_selected_analysis_button()
+
+    def _update_selected_analysis_button(self):
+        if not hasattr(self, "results"):
+            self.selected_analysis_button.state(["disabled"])
+            return
+
+        document = self.results.selected_document()
+
+        if (
+            self.analysis_service is not None
+            and self.analysis_service.supports(document)
+        ):
+            self.selected_analysis_button.state(["!disabled"])
+        else:
+            self.selected_analysis_button.state(["disabled"])
 
     def _show_document(self, document):
         self.detail_name.set(document.name)

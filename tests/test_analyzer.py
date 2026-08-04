@@ -67,7 +67,10 @@ class DocumentAnalyzerTest(unittest.TestCase):
 class AnalysisServiceTest(unittest.TestCase):
 
     def test_analyzes_next_pending_text_document(self):
-        document = SimpleNamespace(name="document.txt")
+        document = SimpleNamespace(
+            name="document.txt",
+            extension=".txt",
+        )
         analysis = SimpleNamespace(category="Report")
         repository = Mock()
         repository.pending_analysis.return_value = [document]
@@ -96,15 +99,18 @@ class AnalysisServiceTest(unittest.TestCase):
 
     def test_reports_pending_text_document_count(self):
         repository = Mock()
-        repository.count_pending_analysis.side_effect = [3, 4]
+        repository.count_pending_analysis.side_effect = [3, 4, 5]
 
         count = AnalysisService(repository, Mock()).pending_count()
 
-        self.assertEqual(repository.count_pending_analysis.call_count, 2)
-        self.assertEqual(count, 7)
+        self.assertEqual(repository.count_pending_analysis.call_count, 3)
+        self.assertEqual(count, 12)
 
     def test_analyzes_docx_when_no_text_document_is_pending(self):
-        document = SimpleNamespace(name="document.docx")
+        document = SimpleNamespace(
+            name="document.docx",
+            extension=".docx",
+        )
         repository = Mock()
         repository.pending_analysis.side_effect = [[], [document]]
         analyzer = Mock()
@@ -115,6 +121,35 @@ class AnalysisServiceTest(unittest.TestCase):
         self.assertEqual(outcome.document, document)
         self.assertEqual(repository.pending_analysis.call_count, 2)
         analyzer.analyze.assert_called_once_with(document)
+
+    def test_analyzes_selected_supported_document(self):
+        document = SimpleNamespace(
+            name="selected.pdf",
+            extension=".pdf",
+            available=True,
+        )
+        analyzer = Mock()
+        analyzer.analyze.return_value = SimpleNamespace(category="Report")
+        service = AnalysisService(Mock(), analyzer)
+
+        outcome = service.analyze_document(document)
+
+        analyzer.analyze.assert_called_once_with(document)
+        self.assertEqual(outcome.document, document)
+        self.assertTrue(service.supports(document))
+
+    def test_rejects_selected_unsupported_document(self):
+        document = SimpleNamespace(
+            name="image.png",
+            extension=".png",
+            available=True,
+        )
+        service = AnalysisService(Mock(), Mock())
+
+        with self.assertRaisesRegex(DocumentAnalysisError, "não suportado"):
+            service.analyze_document(document)
+
+        self.assertFalse(service.supports(document))
 
 
 if __name__ == "__main__":

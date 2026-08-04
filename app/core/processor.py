@@ -2,6 +2,9 @@ from pathlib import Path
 from xml.etree import ElementTree
 from zipfile import BadZipFile, ZipFile
 
+from pypdf import PdfReader
+from pypdf.errors import PyPdfError
+
 
 class DocumentProcessingError(RuntimeError):
     """Erro ao extrair conteúdo de um documento."""
@@ -100,12 +103,78 @@ class DocxDocumentProcessor:
         return content[:self.max_characters]
 
 
+class PdfDocumentProcessor:
+
+    def __init__(self, max_characters=6_000):
+        if max_characters < 1:
+            raise ValueError("max_characters must be greater than zero")
+
+        self.max_characters = max_characters
+
+    def extract(self, path):
+        path = Path(path)
+
+        if path.suffix.casefold() != ".pdf":
+            raise DocumentProcessingError(
+                f"Formato ainda não suportado: {path.suffix or 'sem extensão'}"
+            )
+
+        try:
+            reader = PdfReader(path, strict=False)
+
+            if reader.is_encrypted:
+                raise DocumentProcessingError(
+                    f"PDF protegido por senha: {path}"
+                )
+
+            parts = []
+            extracted_characters = 0
+
+            for page in reader.pages:
+                text = (page.extract_text() or "").strip()
+
+                if not text:
+                    continue
+
+                separator_size = 1 if parts else 0
+                remaining = (
+                    self.max_characters
+                    - extracted_characters
+                    - separator_size
+                )
+
+                if remaining <= 0:
+                    break
+
+                parts.append(text[:remaining])
+                extracted_characters += len(parts[-1]) + separator_size
+
+                if extracted_characters >= self.max_characters:
+                    break
+        except DocumentProcessingError:
+            raise
+        except (OSError, PyPdfError) as error:
+            raise DocumentProcessingError(
+                f"Não foi possível ler o PDF {path}: {error}"
+            ) from error
+
+        content = "\n".join(parts).strip()
+
+        if not content:
+            raise DocumentProcessingError(
+                f"O PDF não contém texto extraível e pode exigir OCR: {path}"
+            )
+
+        return content
+
+
 class DocumentProcessor:
 
     def __init__(self, max_characters=6_000):
         self.processors = {
             ".txt": TextDocumentProcessor(max_characters),
             ".docx": DocxDocumentProcessor(max_characters),
+            ".pdf": PdfDocumentProcessor(max_characters),
         }
 
     def extract(self, path):

@@ -103,7 +103,7 @@ class DocumentAnalyzer:
 
 class AnalysisService:
 
-    SUPPORTED_EXTENSIONS = (".txt", ".docx")
+    SUPPORTED_EXTENSIONS = (".txt", ".docx", ".pdf")
 
     def __init__(self, repository, analyzer):
         self.repository = repository
@@ -121,9 +121,25 @@ class AnalysisService:
         if not pending:
             return None
 
-        document = pending[0]
+        return self.analyze_document(pending[0])
+
+    def analyze_document(self, document):
+        extension = (document.extension or "").casefold()
+
+        if extension not in self.SUPPORTED_EXTENSIONS:
+            raise DocumentAnalysisError(
+                f"Formato não suportado para análise: {document.extension}"
+            )
+
         analysis = self.analyzer.analyze(document)
         return AnalysisOutcome(document=document, analysis=analysis)
+
+    def supports(self, document):
+        return (
+            document is not None
+            and document.available
+            and (document.extension or "").casefold() in self.SUPPORTED_EXTENSIONS
+        )
 
     def pending_count(self):
         return sum(

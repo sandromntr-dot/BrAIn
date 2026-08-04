@@ -1,12 +1,15 @@
 import tempfile
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
+from unittest.mock import Mock, patch
 from zipfile import ZipFile
 
 from app.core.processor import (
     DocumentProcessingError,
     DocumentProcessor,
     DocxDocumentProcessor,
+    PdfDocumentProcessor,
     TextDocumentProcessor,
 )
 
@@ -98,3 +101,37 @@ class DocxDocumentProcessorTest(unittest.TestCase):
         content = DocumentProcessor().extract(path)
 
         self.assertEqual(content, "Content")
+
+
+class PdfDocumentProcessorTest(unittest.TestCase):
+
+    def test_extracts_text_until_character_limit(self):
+        reader = SimpleNamespace(
+            is_encrypted=False,
+            pages=[
+                SimpleNamespace(extract_text=Mock(return_value="First page")),
+                SimpleNamespace(extract_text=Mock(return_value="Second page")),
+            ],
+        )
+
+        with patch("app.core.processor.PdfReader", return_value=reader):
+            content = PdfDocumentProcessor(max_characters=15).extract("file.pdf")
+
+        self.assertEqual(content, "First page\nSeco")
+
+    def test_rejects_encrypted_pdf(self):
+        reader = SimpleNamespace(is_encrypted=True, pages=[])
+
+        with patch("app.core.processor.PdfReader", return_value=reader):
+            with self.assertRaisesRegex(DocumentProcessingError, "senha"):
+                PdfDocumentProcessor().extract("file.pdf")
+
+    def test_reports_pdf_that_requires_ocr(self):
+        reader = SimpleNamespace(
+            is_encrypted=False,
+            pages=[SimpleNamespace(extract_text=Mock(return_value=""))],
+        )
+
+        with patch("app.core.processor.PdfReader", return_value=reader):
+            with self.assertRaisesRegex(DocumentProcessingError, "OCR"):
+                PdfDocumentProcessor().extract("scan.pdf")
