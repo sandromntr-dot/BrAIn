@@ -3,6 +3,11 @@
 __pycache__/
 *.pyc
 
-data/*.sqlite
-
 .vscode/
+
+# SQLite
+data/*.db
+data/*.sqlite
+*.db-journal
+*.db-wal
+*.db-shmdata/*.db
