@@ -1,14 +1,16 @@
 from app.core.scanner import Scanner
-from app.utils.config import DOWNLOAD_FOLDER
 
 
 def main():
-    scanner = Scanner(DOWNLOAD_FOLDER)
 
-    files = scanner.scan()
+    scanner = Scanner(
+        r"C:\Users\Admin\Downloads"
+    )
 
-    for file in files:
-        print(file.name)
+    documents = scanner.scan()
+
+    for document in documents:
+        print(document)
 
 
 if __name__ == "__main__":

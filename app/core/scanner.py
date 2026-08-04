@@ -1,20 +1,22 @@
 from pathlib import Path
 
+from app.core.document import Document
+
 
 class Scanner:
-    """Responsável por localizar arquivos em um diretório."""
+    """Responsável por localizar documentos."""
 
-    def __init__(self, folder: Path):
-        self.folder = folder
+    def __init__(self, folder: str):
+        self.folder = Path(folder)
 
-    def scan(self) -> list[Path]:
-        """Retorna todos os arquivos da pasta."""
+    def scan(self) -> list[Document]:
+        """Retorna documentos encontrados."""
 
         if not self.folder.exists():
             return []
 
         return [
-            file
+            Document(file)
             for file in self.folder.iterdir()
             if file.is_file()
         ]
