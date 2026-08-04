@@ -1,3 +1,4 @@
+import base64
 import json
 import unittest
 from urllib.error import URLError
@@ -57,6 +58,23 @@ class GemmaClientTest(unittest.TestCase):
         request = urlopen_mock.call_args.args[0]
         payload = json.loads(request.data.decode("utf-8"))
         self.assertEqual(payload["format"], schema)
+
+    def test_sends_images_for_visual_analysis(self):
+        response = Mock()
+        response.read.return_value = b'{"message": {"content": "{}"}}'
+        response.__enter__ = Mock(return_value=response)
+        response.__exit__ = Mock(return_value=False)
+
+        with patch("app.ai.gemma.urlopen", return_value=response) as urlopen_mock:
+            GemmaClient().generate("Analise a imagem", images=[b"image-data"])
+
+        request = urlopen_mock.call_args.args[0]
+        payload = json.loads(request.data.decode("utf-8"))
+        self.assertEqual(request.full_url, "http://localhost:11434/api/chat")
+        self.assertEqual(
+            payload["messages"][0]["images"],
+            [base64.b64encode(b"image-data").decode("ascii")],
+        )
 
     def test_reports_unavailable_ollama(self):
         with patch(

@@ -4,6 +4,7 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import Mock
 
+from app.core.processor import DocumentProcessingError
 from app.services.analyzer import (
     AnalysisService,
     DocumentAnalyzer,
@@ -63,6 +64,68 @@ class DocumentAnalyzerTest(unittest.TestCase):
 
         self.repository.save_analysis.assert_not_called()
 
+    def test_uses_gemma_vision_when_text_cannot_be_extracted(self):
+        self.processor.extract.side_effect = DocumentProcessingError("OCR")
+        visual_processor = Mock()
+        visual_processor.supports.return_value = True
+        visual_processor.extract.return_value = SimpleNamespace(
+            images=(b"slide",),
+            total_pages=1,
+            truncated=False,
+        )
+        self.client.generate.return_value = SimpleNamespace(
+            text=json.dumps({"summary": "Resumo visual.", "category": "Slide"}),
+            prompt_tokens=30,
+            response_tokens=10,
+        )
+        self.repository.save_analysis.return_value = True
+        analyzer = DocumentAnalyzer(
+            self.client,
+            self.repository,
+            self.processor,
+            visual_processor,
+            visual_gemma_client=self.client,
+        )
+
+        result = analyzer.analyze(self.document)
+
+        self.assertEqual(result.summary, "Resumo visual.")
+        self.assertEqual(
+            self.client.generate.call_args.kwargs["images"],
+            (b"slide",),
+        )
+
+    def test_rejects_visual_response_that_did_not_receive_image(self):
+        self.processor.extract.side_effect = DocumentProcessingError("OCR")
+        visual_processor = Mock()
+        visual_processor.supports.return_value = True
+        visual_processor.extract.return_value = SimpleNamespace(
+            images=(b"slide",),
+            total_pages=1,
+            truncated=False,
+        )
+        visual_client = Mock()
+        visual_client.generate.return_value = SimpleNamespace(
+            text=json.dumps({
+                "summary": "Não consigo ver nenhuma imagem anexada.",
+                "category": "Indefinido",
+            }),
+            prompt_tokens=10,
+            response_tokens=5,
+        )
+        analyzer = DocumentAnalyzer(
+            self.client,
+            self.repository,
+            self.processor,
+            visual_processor,
+            visual_gemma_client=visual_client,
+        )
+
+        with self.assertRaisesRegex(DocumentAnalysisError, "acessar a imagem"):
+            analyzer.analyze(self.document)
+
+        self.repository.save_analysis.assert_not_called()
+
 
 class AnalysisServiceTest(unittest.TestCase):
 
@@ -110,12 +173,12 @@ class AnalysisServiceTest(unittest.TestCase):
 
     def test_reports_pending_text_document_count(self):
         repository = Mock()
-        repository.count_pending_analysis.side_effect = [3, 4, 5, 6, 7, 8]
+        repository.count_pending_analysis.side_effect = range(1, 11)
 
         count = AnalysisService(repository, Mock()).pending_count()
 
-        self.assertEqual(repository.count_pending_analysis.call_count, 6)
-        self.assertEqual(count, 33)
+        self.assertEqual(repository.count_pending_analysis.call_count, 10)
+        self.assertEqual(count, 55)
 
     def test_analyzes_docx_when_no_text_document_is_pending(self):
         document = SimpleNamespace(
@@ -151,8 +214,8 @@ class AnalysisServiceTest(unittest.TestCase):
 
     def test_rejects_selected_unsupported_document(self):
         document = SimpleNamespace(
-            name="image.png",
-            extension=".png",
+            name="program.exe",
+            extension=".exe",
             available=True,
         )
         service = AnalysisService(Mock(), Mock())

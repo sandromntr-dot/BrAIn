@@ -54,6 +54,8 @@ Atualmente o BrAIn já é capaz de:
 - ✅ Marcar documentos removidos como indisponíveis sem apagar seu histórico.
 - ✅ Pesquisar por nome, caminho, extensão, resumo e categoria.
 - ✅ Extrair conteúdo de arquivos TXT, DOCX, PDFs textuais, CSV, BPMN e PPTX.
+- ✅ Analisar imagens, PDFs digitalizados e PPTX baseados em imagens com Gemma
+  Vision através do Ollama local.
 - ✅ Gerar resumos e categorias com Gemma 4 através do Ollama local.
 - ✅ Processar automaticamente os documentos pendentes, com pausa, retomada e
   tolerância a falhas, ou analisar um documento selecionado.
@@ -88,14 +90,16 @@ A imagem abaixo representa a visão geral que orientou a arquitetura do projeto.
 * **Ambiente & Gestão:** uv, Git, GitHub
 
 **Inteligência Artificial**
-* **Modelo:** Gemma 4 8B, executado localmente
+* **Modelos:** Gemma 4 8B para texto e Gemma 3 4B para visão, executados localmente
 * **Engine:** Ollama
 * **Saída estruturada:** resumo e categoria em JSON
+* **Visão:** leitura e interpretação local de imagens e documentos digitalizados
 
 **Banco de Dados & Interface**
 * **Memória Central:** SQLite
 * **Frontend:** Tkinter/ttk
 * **Extração de PDF:** pypdf
+* **Renderização de PDF para visão:** PyMuPDF
 
 ---
 
@@ -114,6 +118,7 @@ Para utilizar a análise local, mantenha o Ollama em execução e instale o mode
 ```powershell
 ollama list
 ollama run gemma4:latest
+ollama pull gemma3:4b
 ```
 
 Na interface, utilize **Analisar documentos pendentes** para executar a primeira
@@ -123,9 +128,11 @@ após o atual** para interromper com segurança depois que o documento em andame
 terminar. Também é possível selecionar uma linha compatível e utilizar **Analisar
 selecionado**.
 
-Os formatos analisáveis atualmente são `.txt`, `.docx`, `.pdf` textual, `.csv`,
-`.bpmn` e `.pptx` com texto interno. Cada resultado é persistido imediatamente;
-arquivos com erro são registrados e ignorados pela execução automática seguinte.
+Os formatos analisáveis atualmente são `.txt`, `.docx`, `.pdf`, `.csv`, `.bpmn`,
+`.pptx`, `.jpg`, `.jpeg`, `.png` e `.webp`. Quando um PDF ou PPTX não contém
+texto extraível, o BrAIn envia suas páginas ou imagens ao Gemma Vision através do
+Ollama. Cada resultado é persistido imediatamente; arquivos com erro são
+registrados e ignorados pela execução automática seguinte.
 
 Para executar os testes automatizados:
 
@@ -171,7 +178,8 @@ O desenvolvimento deste projeto é guiado pelas melhores práticas de engenharia
 - [x] Classificação assistida
 - [x] Resumos assistidos
 - [x] Extração de TXT, DOCX, PDF textual, CSV, BPMN e PPTX
-- [ ] OCR para PDFs digitalizados
+- [x] Análise visual de imagens, PDFs digitalizados e PPTX baseados em imagens
+- [x] Reconhecimento visual de PDFs digitalizados com Gemma Vision
 - [x] Processamento em lote com progresso, pausa e controle de falhas
 - [ ] Busca semântica
 
@@ -222,12 +230,13 @@ Versão atual: **MVP em desenvolvimento ativo**
 
 ### Em desenvolvimento
 
-- OCR para documentos digitalizados
+- Processamento visual em blocos para documentos extensos
 - Busca semântica e RAG
 
 ### Limitações atuais
 
-- PDFs e apresentações compostos apenas por imagens ainda exigem OCR.
+- A análise visual inicial considera até 20 páginas ou slides por documento.
+- O formato binário antigo `.ppt` exige conversão prévia para `.pptx` ou `.pdf`.
 - A análise com Gemma pode levar alguns minutos quando executada somente em CPU.
 - O conteúdo enviado ao modelo é limitado a 6.000 caracteres por documento.
 ---

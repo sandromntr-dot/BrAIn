@@ -18,7 +18,11 @@ def main():
     indexer = Indexer(repository)
     indexer.run()
 
-    analyzer = DocumentAnalyzer(GemmaClient(), repository)
+    analyzer = DocumentAnalyzer(
+        GemmaClient(),
+        repository,
+        visual_gemma_client=GemmaClient(model="gemma3:4b"),
+    )
     analysis_service = AnalysisService(repository, analyzer)
 
     folder_service = FolderSettingsService(Config())

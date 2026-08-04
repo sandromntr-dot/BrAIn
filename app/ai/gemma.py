@@ -1,3 +1,4 @@
+import base64
 import json
 from dataclasses import dataclass
 from urllib.error import HTTPError, URLError
@@ -29,29 +30,49 @@ class GemmaClient:
         self.base_url = base_url.rstrip("/")
         self.timeout = timeout
 
-    def generate(self, prompt, system=None, response_format=None):
+    def generate(self, prompt, system=None, response_format=None, images=None):
         if not prompt or not prompt.strip():
             raise ValueError("prompt must not be empty")
 
+        options = {
+            "temperature": 0.2,
+            "num_predict": 256,
+        }
         payload = {
             "model": self.model,
-            "prompt": prompt,
             "stream": False,
             "think": False,
-            "options": {
-                "temperature": 0.2,
-                "num_predict": 256,
-            },
+            "options": options,
         }
 
-        if system:
+        if images:
+            messages = []
+
+            if system:
+                messages.append({"role": "system", "content": system})
+
+            messages.append({
+                "role": "user",
+                "content": prompt,
+                "images": [
+                    base64.b64encode(image).decode("ascii")
+                    for image in images
+                ],
+            })
+            payload["messages"] = messages
+            endpoint = "/api/chat"
+        else:
+            payload["prompt"] = prompt
+            endpoint = "/api/generate"
+
+        if system and not images:
             payload["system"] = system
 
         if response_format:
             payload["format"] = response_format
 
         request = Request(
-            f"{self.base_url}/api/generate",
+            f"{self.base_url}{endpoint}",
             data=json.dumps(payload).encode("utf-8"),
             headers={"Content-Type": "application/json"},
             method="POST",
@@ -78,11 +99,16 @@ class GemmaClient:
         if "error" in data:
             raise GemmaError(data["error"])
 
-        if "response" not in data:
+        if images:
+            generated_text = data.get("message", {}).get("content")
+        else:
+            generated_text = data.get("response")
+
+        if generated_text is None:
             raise GemmaError("A resposta do Ollama não contém texto gerado")
 
         return GemmaResponse(
-            text=data["response"].strip(),
+            text=generated_text.strip(),
             model=data.get("model", self.model),
             prompt_tokens=data.get("prompt_eval_count", 0),
             response_tokens=data.get("eval_count", 0),
