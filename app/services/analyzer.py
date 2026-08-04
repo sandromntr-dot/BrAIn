@@ -103,7 +103,14 @@ class DocumentAnalyzer:
 
 class AnalysisService:
 
-    SUPPORTED_EXTENSIONS = (".txt", ".docx", ".pdf")
+    SUPPORTED_EXTENSIONS = (
+        ".txt",
+        ".docx",
+        ".pdf",
+        ".csv",
+        ".bpmn",
+        ".pptx",
+    )
 
     def __init__(self, repository, analyzer):
         self.repository = repository

@@ -8,8 +8,11 @@ from zipfile import ZipFile
 from app.core.processor import (
     DocumentProcessingError,
     DocumentProcessor,
+    BpmnDocumentProcessor,
+    CsvDocumentProcessor,
     DocxDocumentProcessor,
     PdfDocumentProcessor,
+    PptxDocumentProcessor,
     TextDocumentProcessor,
 )
 
@@ -135,3 +138,61 @@ class PdfDocumentProcessorTest(unittest.TestCase):
         with patch("app.core.processor.PdfReader", return_value=reader):
             with self.assertRaisesRegex(DocumentProcessingError, "OCR"):
                 PdfDocumentProcessor().extract("scan.pdf")
+
+
+class AdditionalDocumentProcessorTest(unittest.TestCase):
+
+    def setUp(self):
+        self.temporary_directory = tempfile.TemporaryDirectory(dir=Path.cwd())
+        self.root = Path(self.temporary_directory.name)
+
+    def tearDown(self):
+        self.temporary_directory.cleanup()
+
+    def test_extracts_csv_rows(self):
+        path = self.root / "data.csv"
+        path.write_text("name;value\nAlpha;10", encoding="utf-8")
+
+        content = CsvDocumentProcessor().extract(path)
+
+        self.assertEqual(content, "name | value\nAlpha | 10")
+
+    def test_extracts_bpmn_flow_elements(self):
+        path = self.root / "process.bpmn"
+        path.write_text(
+            '<definitions xmlns="http://www.omg.org/spec/BPMN/20100524/MODEL">'
+            '<process id="Process_1" name="Cadastro">'
+            '<startEvent id="Start" name="Início" />'
+            '<userTask id="Task_1" name="Validar cliente" />'
+            '<sequenceFlow id="Flow_1" sourceRef="Start" targetRef="Task_1" />'
+            '</process></definitions>',
+            encoding="utf-8",
+        )
+
+        content = BpmnDocumentProcessor().extract(path)
+
+        self.assertIn("Processo: Cadastro", content)
+        self.assertIn("Tarefa de usuário: Validar cliente", content)
+        self.assertIn("Fluxo: Start -> Task_1", content)
+
+    def test_extracts_pptx_slides_in_order(self):
+        path = self.root / "presentation.pptx"
+        slide_template = (
+            '<p:sld xmlns:p="http://schemas.openxmlformats.org/presentationml/'
+            '2006/main" xmlns:a="http://schemas.openxmlformats.org/drawingml/'
+            '2006/main"><p:cSld><a:t>{}</a:t></p:cSld></p:sld>'
+        )
+
+        with ZipFile(path, "w") as archive:
+            archive.writestr(
+                "ppt/slides/slide2.xml",
+                slide_template.format("Second"),
+            )
+            archive.writestr(
+                "ppt/slides/slide1.xml",
+                slide_template.format("First"),
+            )
+
+        content = PptxDocumentProcessor().extract(path)
+
+        self.assertEqual(content, "Slide 1: First\nSlide 2: Second")

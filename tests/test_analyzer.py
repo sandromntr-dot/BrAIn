@@ -99,12 +99,12 @@ class AnalysisServiceTest(unittest.TestCase):
 
     def test_reports_pending_text_document_count(self):
         repository = Mock()
-        repository.count_pending_analysis.side_effect = [3, 4, 5]
+        repository.count_pending_analysis.side_effect = [3, 4, 5, 6, 7, 8]
 
         count = AnalysisService(repository, Mock()).pending_count()
 
-        self.assertEqual(repository.count_pending_analysis.call_count, 3)
-        self.assertEqual(count, 12)
+        self.assertEqual(repository.count_pending_analysis.call_count, 6)
+        self.assertEqual(count, 33)
 
     def test_analyzes_docx_when_no_text_document_is_pending(self):
         document = SimpleNamespace(
