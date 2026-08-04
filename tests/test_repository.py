@@ -220,6 +220,44 @@ class DocumentRepositoryTest(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.repository.search("document", limit=0)
 
+    def test_lists_pending_text_documents_and_saves_analysis(self):
+        text_path = self.root / "pending.TXT"
+        pdf_path = self.root / "pending.pdf"
+        text_path.write_text("text", encoding="utf-8")
+        pdf_path.write_bytes(b"pdf")
+        self.repository.save(Document(text_path))
+        self.repository.save(Document(pdf_path))
+
+        pending = self.repository.pending_analysis(extension=".txt")
+        saved = self.repository.save_analysis(
+            text_path,
+            "Document summary",
+            "Report",
+        )
+        row = self.fetch_one("""
+            SELECT summary, category, processed
+            FROM documents
+            WHERE path = ?
+        """, (str(text_path),))
+
+        self.assertEqual([document.path for document in pending], [text_path])
+        self.assertTrue(saved)
+        self.assertEqual(row, ("Document summary", "Report", 1))
+        self.assertEqual(self.repository.pending_analysis(extension=".txt"), [])
+
+    def test_does_not_save_analysis_for_unavailable_document(self):
+        self.repository.save(Document(self.document_path))
+        self.document_path.unlink()
+        self.repository.mark_missing(self.root, [])
+
+        saved = self.repository.save_analysis(
+            self.document_path,
+            "Summary",
+            "Category",
+        )
+
+        self.assertFalse(saved)
+
 
 if __name__ == "__main__":
     unittest.main()

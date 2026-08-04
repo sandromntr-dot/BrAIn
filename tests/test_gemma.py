@@ -34,6 +34,7 @@ class GemmaClientTest(unittest.TestCase):
         self.assertEqual(payload["model"], "gemma4:latest")
         self.assertFalse(payload["stream"])
         self.assertFalse(payload["think"])
+        self.assertEqual(payload["system"], "Responda de forma objetiva")
         self.assertEqual(result.text, "Documento financeiro")
         self.assertEqual(result.prompt_tokens, 12)
         self.assertEqual(result.response_tokens, 3)
@@ -41,6 +42,20 @@ class GemmaClientTest(unittest.TestCase):
     def test_rejects_empty_prompt(self):
         with self.assertRaises(ValueError):
             GemmaClient().generate("  ")
+
+    def test_sends_structured_response_format(self):
+        response = Mock()
+        response.read.return_value = b'{"response": "{}"}'
+        response.__enter__ = Mock(return_value=response)
+        response.__exit__ = Mock(return_value=False)
+        schema = {"type": "object"}
+
+        with patch("app.ai.gemma.urlopen", return_value=response) as urlopen_mock:
+            GemmaClient().generate("Analise", response_format=schema)
+
+        request = urlopen_mock.call_args.args[0]
+        payload = json.loads(request.data.decode("utf-8"))
+        self.assertEqual(payload["format"], schema)
 
     def test_reports_unavailable_ollama(self):
         with patch(

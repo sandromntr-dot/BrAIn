@@ -150,6 +150,46 @@ class DocumentRepository:
 
         return [self._to_stored_document(row) for row in rows]
 
+    def pending_analysis(self, extension=".txt", limit=10):
+        if limit < 1:
+            raise ValueError("limit must be greater than zero")
+
+        with closing(self.database.connect()) as connection:
+            rows = connection.execute("""
+                SELECT
+                    id,
+                    name,
+                    path,
+                    extension,
+                    size,
+                    created_at,
+                    summary,
+                    category,
+                    processed,
+                    indexed_at,
+                    available,
+                    missing_at
+                FROM documents
+                WHERE available = 1
+                  AND processed = 0
+                  AND extension = ? COLLATE NOCASE
+                ORDER BY indexed_at, id
+                LIMIT ?
+            """, (extension, limit)).fetchall()
+
+        return [self._to_stored_document(row) for row in rows]
+
+    def save_analysis(self, path, summary, category):
+        with closing(self.database.connect()) as connection:
+            with connection:
+                cursor = connection.execute("""
+                    UPDATE documents
+                    SET summary = ?, category = ?, processed = 1
+                    WHERE path = ? AND available = 1
+                """, (summary, category, str(path)))
+
+        return cursor.rowcount == 1
+
     @staticmethod
     def _normalized_path(path):
         return str(Path(path).resolve(strict=False)).casefold()

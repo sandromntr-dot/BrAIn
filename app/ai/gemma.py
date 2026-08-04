@@ -29,7 +29,7 @@ class GemmaClient:
         self.base_url = base_url.rstrip("/")
         self.timeout = timeout
 
-    def generate(self, prompt, system=None):
+    def generate(self, prompt, system=None, response_format=None):
         if not prompt or not prompt.strip():
             raise ValueError("prompt must not be empty")
 
@@ -45,6 +45,9 @@ class GemmaClient:
 
         if system:
             payload["system"] = system
+
+        if response_format:
+            payload["format"] = response_format
 
         request = Request(
             f"{self.base_url}/api/generate",
