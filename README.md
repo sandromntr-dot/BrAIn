@@ -1,5 +1,5 @@
 # BrAIn 🧠
-**Local AI Document Assistant**
+**### Assistente Inteligente para Organização e Busca de Documentos utilizando IA Local**
 
 O BrAIn é um assistente inteligente projetado para a organização, gerenciamento e localização de documentos utilizando Inteligência Artificial executada 100% localmente.
 
