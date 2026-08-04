@@ -1,6 +1,8 @@
 {
-    "folders": [
-        "C:\\Users\\Admin\\Downloads"
-    ],
+    "monitor": {
+        "downloads": true,
+        "documents": true,
+        "desktop": false
+    },
     "frequency": "manual"
 }
