@@ -1,16 +1,14 @@
-from app.core.document import Document
+from app.core.scanner import Scanner
+from app.utils.config import DOWNLOAD_FOLDER
 
 
 def main():
+    scanner = Scanner(DOWNLOAD_FOLDER)
 
-    document = Document(
-        name="manual.pdf",
-        path="C:/Downloads/manual.pdf",
-        extension=".pdf",
-        size=5000
-    )
+    files = scanner.scan()
 
-    print(document)
+    for file in files:
+        print(file.name)
 
 
 if __name__ == "__main__":
