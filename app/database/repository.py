@@ -12,7 +12,7 @@ class DocumentRepository:
         with closing(self.database.connect()) as connection:
             with connection:
                 cursor = connection.execute("""
-                    INSERT OR IGNORE INTO documents
+                    INSERT INTO documents
                     (
                         name,
                         path,
@@ -25,6 +25,19 @@ class DocumentRepository:
                         indexed_at
                     )
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+                    ON CONFLICT(path) DO UPDATE SET
+                        name = excluded.name,
+                        extension = excluded.extension,
+                        size = excluded.size,
+                        created_at = excluded.created_at,
+                        summary = NULL,
+                        category = NULL,
+                        processed = 0,
+                        indexed_at = datetime('now')
+                    WHERE documents.name IS NOT excluded.name
+                       OR documents.extension IS NOT excluded.extension
+                       OR documents.size IS NOT excluded.size
+                       OR documents.created_at IS NOT excluded.created_at
                 """, (
                     document.name,
                     str(document.path),
