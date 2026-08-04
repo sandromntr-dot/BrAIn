@@ -34,6 +34,23 @@ Criar um assistente local leve e eficiente, capaz de:
 
 ---
 
+## Funcionalidades implementadas
+
+Atualmente o BrAIn já é capaz de:
+
+- ✅ Detectar automaticamente pastas padrão do Windows (Downloads, Documents e Desktop).
+- ✅ Permitir configuração das pastas monitoradas através de arquivo JSON.
+- ✅ Escanear centenas de arquivos em poucos segundos.
+- ✅ Coletar metadados dos documentos:
+  - Nome
+  - Extensão
+  - Tamanho
+  - Data de criação
+- ✅ Modelagem orientada a objetos utilizando a entidade `Document`.
+- ✅ Arquitetura modular preparada para expansão.
+
+---
+
 ## Arquitetura do Sistema
 
 ![Visão Geral da Arquitetura do BrAIn](assets/image.png)
@@ -69,35 +86,38 @@ O desenvolvimento deste projeto é guiado pelas melhores práticas de engenharia
 
 ## Roadmap
 
-**Fase 1 - Fundação e Estrutura**
+### Fase 1 - Fundação e Estrutura
 - [x] Configuração inicial do projeto
-- [x] Criação do ambiente isolado Python com uv
-- [x] Estruturação modular de diretórios
+- [x] Ambiente Python com uv
+- [x] Estrutura modular
+- [x] Organização por camadas
 
-**Fase 2 - Núcleo do Sistema (Core)**
-- [x] Definição da entidade Document
-- [ ] Desenvolvimento do Scanner de arquivos
-- [ ] Configuração e persistência no banco SQLite
-- [ ] Indexação e cadastro de metadados
+### Fase 2 - Núcleo do Sistema (Core)
+- [x] Entidade Document
+- [x] Scanner de arquivos
+- [x] Configuração dinâmica das pastas monitoradas
+- [x] Indexação inicial de metadados
+- [ ] Persistência em SQLite
+- [ ] Atualização incremental da base
+- [ ] Detecção de arquivos duplicados
 
-**Fase 3 - Inteligência Artificial**
-- [ ] Integração do Ollama/Gemma com o sistema
-- [ ] Categorização automática de arquivos
-- [ ] Geração de resumos (Summarization)
-- [ ] Motor de busca inteligente
+### Fase 3 - Inteligência Artificial
+- [ ] Integração com Ollama
+- [ ] Integração com Gemma
+- [ ] Classificação automática
+- [ ] Resumos automáticos
+- [ ] Busca semântica
 
-**Fase 4 - Interface do Usuário (UI)**
-- [ ] Criação do Dashboard Desktop
-- [ ] Visualização de lista de documentos
-- [ ] Barra de pesquisa inteligente
-- [ ] Chat integrado com o assistente
+### Fase 4 - Interface Desktop
+- [ ] Dashboard
+- [ ] Pesquisa
+- [ ] Histórico
+- [ ] Estatísticas
 
-**Fase 5 - Next Level (Integração RAG) 🔮** 
-- [ ] Implementação de RAG (Retrieval-Augmented Generation)
-- [ ] Processamento de conteúdo interno dos documentos (Embeddings)
-- [ ] Criação de base de dados vetorial local (Vector DB)
-- [ ] Chat interativo diretamente com o conteúdo da base de conhecimento ("Converse com seus arquivos")
-
+### Fase 5 - RAG
+- [ ] Embeddings
+- [ ] Base Vetorial
+- [ ] Chat com documentos
 ---
 
 ## Segurança e Privacidade
@@ -107,9 +127,23 @@ Isso significa que seus manuais, contratos, planilhas e relatórios permanecem 1
 ---
 
 ## 🚧 Status do Projeto
-**Em desenvolvimento ativo.**
-Este MVP está sendo construído com foco em aprimoramento técnico, aplicação de boas práticas de arquitetura de software e exploração prática de Inteligência Artificial generativa local.
 
+Versão atual: **MVP em desenvolvimento ativo**
+
+### Implementado
+
+- Estrutura do projeto
+- Arquitetura modular
+- Scanner de arquivos
+- Configuração dinâmica das pastas monitoradas
+- Coleta de metadados
+
+### Em desenvolvimento
+
+- Banco SQLite
+- Persistência
+- Busca
+- IA Local
 ---
 
 ** Autor**
