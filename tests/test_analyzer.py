@@ -96,12 +96,25 @@ class AnalysisServiceTest(unittest.TestCase):
 
     def test_reports_pending_text_document_count(self):
         repository = Mock()
-        repository.count_pending_analysis.return_value = 3
+        repository.count_pending_analysis.side_effect = [3, 4]
 
         count = AnalysisService(repository, Mock()).pending_count()
 
-        repository.count_pending_analysis.assert_called_once_with(extension=".txt")
-        self.assertEqual(count, 3)
+        self.assertEqual(repository.count_pending_analysis.call_count, 2)
+        self.assertEqual(count, 7)
+
+    def test_analyzes_docx_when_no_text_document_is_pending(self):
+        document = SimpleNamespace(name="document.docx")
+        repository = Mock()
+        repository.pending_analysis.side_effect = [[], [document]]
+        analyzer = Mock()
+        analyzer.analyze.return_value = SimpleNamespace(category="Report")
+
+        outcome = AnalysisService(repository, analyzer).analyze_next()
+
+        self.assertEqual(outcome.document, document)
+        self.assertEqual(repository.pending_analysis.call_count, 2)
+        analyzer.analyze.assert_called_once_with(document)
 
 
 if __name__ == "__main__":

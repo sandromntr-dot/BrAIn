@@ -1,7 +1,7 @@
 import json
 from dataclasses import dataclass
 
-from app.core.processor import TextDocumentProcessor
+from app.core.processor import DocumentProcessor
 
 
 class DocumentAnalysisError(RuntimeError):
@@ -43,7 +43,7 @@ class DocumentAnalyzer:
     def __init__(self, gemma_client, repository, processor=None):
         self.gemma_client = gemma_client
         self.repository = repository
-        self.processor = processor or TextDocumentProcessor()
+        self.processor = processor or DocumentProcessor()
 
     def analyze(self, document):
         content = self.processor.extract(document.path)
@@ -103,12 +103,20 @@ class DocumentAnalyzer:
 
 class AnalysisService:
 
+    SUPPORTED_EXTENSIONS = (".txt", ".docx")
+
     def __init__(self, repository, analyzer):
         self.repository = repository
         self.analyzer = analyzer
 
     def analyze_next(self):
-        pending = self.repository.pending_analysis(extension=".txt", limit=1)
+        pending = []
+
+        for extension in self.SUPPORTED_EXTENSIONS:
+            pending = self.repository.pending_analysis(extension=extension, limit=1)
+
+            if pending:
+                break
 
         if not pending:
             return None
@@ -118,4 +126,7 @@ class AnalysisService:
         return AnalysisOutcome(document=document, analysis=analysis)
 
     def pending_count(self):
-        return self.repository.count_pending_analysis(extension=".txt")
+        return sum(
+            self.repository.count_pending_analysis(extension=extension)
+            for extension in self.SUPPORTED_EXTENSIONS
+        )

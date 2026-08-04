@@ -276,7 +276,7 @@ class MainWindow:
 
         self.analysis_button = ttk.Button(
             results_card,
-            text="Analisar próximo TXT",
+            text="Analisar próximo documento",
             command=self.start_analysis,
             style="Analysis.TButton",
         )
@@ -360,7 +360,7 @@ class MainWindow:
         self.analysis_button.state(["disabled"])
         self.analysis_progress.grid()
         self.analysis_progress.start(12)
-        self.status.set("Gemma está analisando o próximo documento TXT...")
+        self.status.set("Gemma está analisando o próximo documento...")
         threading.Thread(target=self._analyze_next, daemon=True).start()
 
     def _analyze_next(self):
@@ -376,7 +376,7 @@ class MainWindow:
         self._update_analysis_button()
 
         if outcome is None:
-            self.status.set("Nenhum documento TXT pendente de análise")
+            self.status.set("Nenhum documento compatível pendente de análise")
             return
 
         documents = self.search_service.search(self.query.get())
@@ -410,7 +410,7 @@ class MainWindow:
             return
 
         pending = self.analysis_service.pending_count()
-        self.analysis_button.configure(text=f"Analisar próximo TXT ({pending})")
+        self.analysis_button.configure(text=f"Analisar próximo documento ({pending})")
 
         if pending:
             self.analysis_button.state(["!disabled"])

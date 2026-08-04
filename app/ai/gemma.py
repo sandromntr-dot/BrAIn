@@ -23,7 +23,7 @@ class GemmaClient:
         self,
         model="gemma4:latest",
         base_url="http://localhost:11434",
-        timeout=120,
+        timeout=300,
     ):
         self.model = model
         self.base_url = base_url.rstrip("/")
@@ -40,6 +40,7 @@ class GemmaClient:
             "think": False,
             "options": {
                 "temperature": 0.2,
+                "num_predict": 256,
             },
         }
 
@@ -61,6 +62,11 @@ class GemmaClient:
                 data = json.loads(response.read().decode("utf-8"))
         except HTTPError as error:
             raise GemmaError(self._http_error_message(error)) from error
+        except TimeoutError as error:
+            raise GemmaError(
+                "O Gemma excedeu o tempo limite de análise. "
+                "O documento permanece pendente e pode ser tentado novamente."
+            ) from error
         except URLError as error:
             raise GemmaError(
                 "O Ollama local não está disponível em "

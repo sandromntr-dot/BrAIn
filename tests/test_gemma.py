@@ -34,6 +34,7 @@ class GemmaClientTest(unittest.TestCase):
         self.assertEqual(payload["model"], "gemma4:latest")
         self.assertFalse(payload["stream"])
         self.assertFalse(payload["think"])
+        self.assertEqual(payload["options"]["num_predict"], 256)
         self.assertEqual(payload["system"], "Responda de forma objetiva")
         self.assertEqual(result.text, "Documento financeiro")
         self.assertEqual(result.prompt_tokens, 12)
@@ -63,6 +64,11 @@ class GemmaClientTest(unittest.TestCase):
             side_effect=URLError("connection refused"),
         ):
             with self.assertRaisesRegex(GemmaError, "não está disponível"):
+                GemmaClient().generate("Olá")
+
+    def test_reports_timeout_without_losing_retry_context(self):
+        with patch("app.ai.gemma.urlopen", side_effect=TimeoutError()):
+            with self.assertRaisesRegex(GemmaError, "permanece pendente"):
                 GemmaClient().generate("Olá")
 
     def test_reports_invalid_json_response(self):

@@ -1,8 +1,14 @@
 import tempfile
 import unittest
 from pathlib import Path
+from zipfile import ZipFile
 
-from app.core.processor import DocumentProcessingError, TextDocumentProcessor
+from app.core.processor import (
+    DocumentProcessingError,
+    DocumentProcessor,
+    DocxDocumentProcessor,
+    TextDocumentProcessor,
+)
 
 
 class TextDocumentProcessorTest(unittest.TestCase):
@@ -43,3 +49,52 @@ class TextDocumentProcessorTest(unittest.TestCase):
 
         with self.assertRaisesRegex(DocumentProcessingError, "vazio"):
             TextDocumentProcessor().extract(path)
+
+
+class DocxDocumentProcessorTest(unittest.TestCase):
+
+    def setUp(self):
+        self.temporary_directory = tempfile.TemporaryDirectory(dir=Path.cwd())
+        self.root = Path(self.temporary_directory.name)
+
+    def tearDown(self):
+        self.temporary_directory.cleanup()
+
+    def create_docx(self, name, paragraphs):
+        path = self.root / name
+        body = "".join(
+            f"<w:p><w:r><w:t>{paragraph}</w:t></w:r></w:p>"
+            for paragraph in paragraphs
+        )
+        xml = (
+            '<?xml version="1.0" encoding="UTF-8"?>'
+            '<w:document xmlns:w="http://schemas.openxmlformats.org/'
+            'wordprocessingml/2006/main"><w:body>'
+            f"{body}</w:body></w:document>"
+        )
+
+        with ZipFile(path, "w") as archive:
+            archive.writestr("word/document.xml", xml)
+
+        return path
+
+    def test_extracts_docx_paragraphs(self):
+        path = self.create_docx("document.docx", ["First", "Second"])
+
+        content = DocxDocumentProcessor().extract(path)
+
+        self.assertEqual(content, "First\nSecond")
+
+    def test_rejects_invalid_docx(self):
+        path = self.root / "invalid.docx"
+        path.write_bytes(b"not-a-zip")
+
+        with self.assertRaisesRegex(DocumentProcessingError, "ler o DOCX"):
+            DocxDocumentProcessor().extract(path)
+
+    def test_dispatches_supported_document_formats(self):
+        path = self.create_docx("document.DOCX", ["Content"])
+
+        content = DocumentProcessor().extract(path)
+
+        self.assertEqual(content, "Content")
