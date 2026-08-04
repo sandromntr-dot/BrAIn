@@ -1,5 +1,3 @@
-from pathlib import Path
-
 from app.core.config import Config
 from app.core.scanner import Scanner
 from app.database.repository import DocumentRepository
@@ -15,18 +13,7 @@ class Indexer:
         config = Config()
         settings = config.load()
 
-        folders = []
-
-        monitor = settings["monitor"]
-
-        if monitor["downloads"]:
-            folders.append(Path.home() / "Downloads")
-
-        if monitor["documents"]:
-            folders.append(Path.home() / "Documents")
-
-        if monitor["desktop"]:
-            folders.append(Path.home() / "Desktop")
+        folders = config.monitored_folders(settings)
 
         for folder in folders:
 

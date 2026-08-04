@@ -1,9 +1,11 @@
 import os
 import threading
 import tkinter as tk
+from pathlib import Path
 from tkinter import messagebox, ttk
 
 from app.ui.components import SearchResultsTable
+from app.ui.folder_dialog import FolderSettingsDialog
 
 
 class MainWindow:
@@ -17,9 +19,16 @@ class MainWindow:
     MUTED = "#687386"
     BORDER = "#DDE3ED"
 
-    def __init__(self, search_service, analysis_service=None, root=None):
+    def __init__(
+        self,
+        search_service,
+        analysis_service=None,
+        root=None,
+        folder_service=None,
+    ):
         self.search_service = search_service
         self.analysis_service = analysis_service
+        self.folder_service = folder_service
         self.root = root or tk.Tk()
         self.query = tk.StringVar(master=self.root)
         self.status = tk.StringVar(master=self.root, value="Pronto para pesquisar")
@@ -175,8 +184,8 @@ class MainWindow:
 
     def _build(self):
         self.root.title("BrAIn — Busca de Documentos")
-        self.root.geometry("1120x700")
-        self.root.minsize(780, 500)
+        self.root.geometry("1280x760")
+        self.root.minsize(980, 580)
         self.root.columnconfigure(0, weight=1)
         self.root.rowconfigure(1, weight=1)
 
@@ -222,8 +231,26 @@ class MainWindow:
         privacy.grid(row=0, column=2, rowspan=2)
 
     def _build_content(self):
-        content = ttk.Frame(self.root, style="App.TFrame", padding=(32, 26, 32, 22))
-        content.grid(row=1, column=0, sticky="nsew")
+        body = ttk.Frame(self.root, style="App.TFrame")
+        body.grid(row=1, column=0, sticky="nsew")
+        body.columnconfigure(1, weight=1)
+        body.rowconfigure(0, weight=1)
+
+        sidebar = tk.Frame(
+            body,
+            width=286,
+            background="#EEF2F7",
+            highlightbackground=self.BORDER,
+            highlightthickness=1,
+            padx=18,
+            pady=22,
+        )
+        sidebar.grid(row=0, column=0, sticky="nsw")
+        sidebar.grid_propagate(False)
+        self._build_sidebar(sidebar)
+
+        content = ttk.Frame(body, style="App.TFrame", padding=(26, 24, 28, 20))
+        content.grid(row=0, column=1, sticky="nsew")
         content.columnconfigure(0, weight=1)
         content.rowconfigure(3, weight=1)
 
@@ -303,12 +330,12 @@ class MainWindow:
             self._update_analysis_button()
 
         self.results = SearchResultsTable(results_card)
-        self.results.grid(row=2, column=0, columnspan=2, sticky="nsew")
+        self.results.grid(row=2, column=0, columnspan=3, sticky="nsew")
         self.results.tree.bind("<Double-1>", self.open_selected_document)
         self.results.tree.bind("<<TreeviewSelect>>", self.show_selected_document)
 
         detail = ttk.Frame(results_card, style="Card.TFrame")
-        detail.grid(row=3, column=0, columnspan=2, sticky="ew", pady=(14, 0))
+        detail.grid(row=3, column=0, columnspan=3, sticky="ew", pady=(14, 0))
         detail.columnconfigure(1, weight=1)
 
         detail_surface = tk.Frame(
@@ -362,6 +389,157 @@ class MainWindow:
             textvariable=self.status,
             style="Status.TLabel",
         ).grid(row=5, column=0, sticky="w", pady=(8, 0))
+
+    def _build_sidebar(self, sidebar):
+        tk.Label(
+            sidebar,
+            text="SEU ESPAÇO",
+            background="#EEF2F7",
+            foreground=self.MUTED,
+            anchor="w",
+            font=("Segoe UI", 8, "bold"),
+        ).pack(fill=tk.X)
+        tk.Label(
+            sidebar,
+            text="Pastas monitoradas",
+            background="#EEF2F7",
+            foreground=self.TEXT,
+            anchor="w",
+            font=("Segoe UI", 14, "bold"),
+        ).pack(fill=tk.X, pady=(4, 3))
+        tk.Label(
+            sidebar,
+            text="O BrAIn indexa estes locais ao iniciar.",
+            background="#EEF2F7",
+            foreground=self.MUTED,
+            anchor="w",
+            justify="left",
+            wraplength=240,
+            font=("Segoe UI", 9),
+        ).pack(fill=tk.X, pady=(0, 14))
+
+        self.folder_list = tk.Frame(sidebar, background="#EEF2F7")
+        self.folder_list.pack(fill=tk.X)
+
+        self.manage_folders_button = ttk.Button(
+            sidebar,
+            text="＋  Gerenciar pastas",
+            command=self.open_folder_settings,
+            style="Analysis.TButton",
+        )
+        self.manage_folders_button.pack(fill=tk.X, pady=(12, 0))
+
+        if self.folder_service is None:
+            self.manage_folders_button.state(["disabled"])
+            self._render_folder_message("Configuração indisponível")
+        else:
+            self._refresh_folder_summary()
+
+        ai_card = tk.Frame(
+            sidebar,
+            background="#E4E7FF",
+            padx=13,
+            pady=12,
+        )
+        ai_card.pack(side=tk.BOTTOM, fill=tk.X)
+        tk.Label(
+            ai_card,
+            text="●  IA LOCAL ATIVA",
+            background="#E4E7FF",
+            foreground="#3D9A68",
+            anchor="w",
+            font=("Segoe UI", 8, "bold"),
+        ).pack(fill=tk.X)
+        tk.Label(
+            ai_card,
+            text="Gemma 4 · Ollama",
+            background="#E4E7FF",
+            foreground=self.TEXT,
+            anchor="w",
+            font=("Segoe UI", 10, "bold"),
+        ).pack(fill=tk.X, pady=(4, 1))
+        tk.Label(
+            ai_card,
+            text="Seus documentos permanecem neste computador.",
+            background="#E4E7FF",
+            foreground=self.MUTED,
+            anchor="w",
+            justify="left",
+            wraplength=220,
+            font=("Segoe UI", 8),
+        ).pack(fill=tk.X)
+
+    def _refresh_folder_summary(self, settings=None):
+        if self.folder_service is None:
+            return
+
+        settings = settings or self.folder_service.load()
+        folders = []
+
+        if settings.downloads:
+            folders.append(("Downloads", Path.home() / "Downloads"))
+
+        if settings.documents:
+            folders.append(("Documentos", Path.home() / "Documents"))
+
+        if settings.desktop:
+            folders.append(("Área de Trabalho", Path.home() / "Desktop"))
+
+        folders.extend(
+            (path.name or str(path), path)
+            for path in settings.custom_folders
+        )
+
+        for child in self.folder_list.winfo_children():
+            child.destroy()
+
+        if not folders:
+            self._render_folder_message("Nenhuma pasta configurada")
+            return
+
+        for name, path in folders[:6]:
+            self._render_folder_item(name, path)
+
+        if len(folders) > 6:
+            self._render_folder_message(f"+ {len(folders) - 6} outra(s) pasta(s)")
+
+    def _render_folder_item(self, name, path):
+        item = tk.Frame(
+            self.folder_list,
+            background=self.SURFACE,
+            highlightbackground=self.BORDER,
+            highlightthickness=1,
+            padx=10,
+            pady=8,
+        )
+        item.pack(fill=tk.X, pady=3)
+
+        tk.Label(
+            item,
+            text=f"●  {name}",
+            background=self.SURFACE,
+            foreground=self.TEXT,
+            anchor="w",
+            font=("Segoe UI", 9, "bold"),
+        ).pack(fill=tk.X)
+        tk.Label(
+            item,
+            text=str(path),
+            background=self.SURFACE,
+            foreground=self.MUTED,
+            anchor="w",
+            font=("Segoe UI", 7),
+        ).pack(fill=tk.X, pady=(2, 0))
+
+    def _render_folder_message(self, message):
+        tk.Label(
+            self.folder_list,
+            text=message,
+            background="#EEF2F7",
+            foreground=self.MUTED,
+            anchor="w",
+            font=("Segoe UI", 9),
+        ).pack(fill=tk.X, pady=8)
 
     def search(self, _event=None):
         documents = self.search_service.search(self.query.get())
@@ -511,3 +689,26 @@ class MainWindow:
 
     def run(self):
         self.root.mainloop()
+
+    def open_folder_settings(self):
+        if self.folder_service is None:
+            return
+
+        FolderSettingsDialog(
+            self.root,
+            self.folder_service,
+            on_saved=self._folder_settings_saved,
+        )
+
+    def _folder_settings_saved(self, settings):
+        self._refresh_folder_summary(settings)
+        total = sum((
+            settings.downloads,
+            settings.documents,
+            settings.desktop,
+            len(settings.custom_folders),
+        ))
+        self.status.set(
+            f"Configuração salva: {total} pasta(s). "
+            "Reinicie para executar uma nova indexação."
+        )

@@ -2,7 +2,10 @@
     "monitor": {
         "downloads": true,
         "documents": true,
-        "desktop": false
+        "desktop": true
     },
+    "custom_folders": [
+        "C:\\Users\\Admin\\Videos\\Captures"
+    ],
     "frequency": "manual"
 }

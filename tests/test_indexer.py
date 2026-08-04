@@ -38,6 +38,9 @@ class IndexerTest(unittest.TestCase):
             redirect_stdout(output),
         ):
             config_class.return_value.load.return_value = settings
+            config_class.return_value.monitored_folders.return_value = [
+                Path.home() / "Downloads"
+            ]
             Indexer(repository).run()
 
         repository.save.assert_called_once_with(document)
@@ -53,7 +56,7 @@ class IndexerTest(unittest.TestCase):
         scanner.errors = []
 
         repository = Mock()
-        missing_home = Path("missing-home")
+        missing_folder = Path("missing-home")
         settings = {
             "monitor": {
                 "downloads": True,
@@ -65,11 +68,13 @@ class IndexerTest(unittest.TestCase):
         with (
             patch("app.services.indexer.Config") as config_class,
             patch("app.services.indexer.Scanner", return_value=scanner),
-            patch("app.services.indexer.Path.home", return_value=missing_home),
-            patch("app.services.indexer.Path.exists", return_value=False),
+            patch("pathlib.Path.exists", return_value=False),
             redirect_stdout(io.StringIO()),
         ):
             config_class.return_value.load.return_value = settings
+            config_class.return_value.monitored_folders.return_value = [
+                missing_folder
+            ]
             Indexer(repository).run()
 
         repository.mark_missing.assert_not_called()
