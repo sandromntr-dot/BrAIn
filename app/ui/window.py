@@ -1,4 +1,5 @@
 import os
+import threading
 import tkinter as tk
 from tkinter import messagebox, ttk
 
@@ -16,8 +17,9 @@ class MainWindow:
     MUTED = "#687386"
     BORDER = "#DDE3ED"
 
-    def __init__(self, search_service, root=None):
+    def __init__(self, search_service, analysis_service=None, root=None):
         self.search_service = search_service
+        self.analysis_service = analysis_service
         self.root = root or tk.Tk()
         self.query = tk.StringVar(master=self.root)
         self.status = tk.StringVar(master=self.root, value="Pronto para pesquisar")
@@ -106,6 +108,23 @@ class MainWindow:
                 ("pressed", self.PRIMARY_HOVER),
                 ("active", self.PRIMARY_HOVER),
             ],
+        )
+        style.configure(
+            "Analysis.TButton",
+            background="#EEF0FF",
+            foreground=self.PRIMARY,
+            borderwidth=0,
+            padding=(16, 8),
+            font=("Segoe UI", 9, "bold"),
+        )
+        style.map(
+            "Analysis.TButton",
+            background=[
+                ("disabled", "#F1F3F7"),
+                ("pressed", "#DFE2FF"),
+                ("active", "#DFE2FF"),
+            ],
+            foreground=[("disabled", "#9AA3B2")],
         )
         style.configure(
             "Results.Treeview",
@@ -237,8 +256,19 @@ class MainWindow:
             style="CardHint.TLabel",
         ).grid(row=1, column=0, sticky="w", pady=(2, 12))
 
+        self.analysis_button = ttk.Button(
+            results_card,
+            text="Analisar próximo TXT",
+            command=self.start_analysis,
+            style="Analysis.TButton",
+        )
+        self.analysis_button.grid(row=0, column=1, rowspan=2, sticky="e")
+
+        if self.analysis_service is None:
+            self.analysis_button.state(["disabled"])
+
         self.results = SearchResultsTable(results_card)
-        self.results.grid(row=2, column=0, sticky="nsew")
+        self.results.grid(row=2, column=0, columnspan=2, sticky="nsew")
         self.results.tree.bind("<Double-1>", self.open_selected_document)
 
         ttk.Label(
@@ -251,6 +281,41 @@ class MainWindow:
         documents = self.search_service.search(self.query.get())
         self.results.set_documents(documents)
         self.status.set(f"{len(documents)} documento(s) encontrado(s)")
+
+    def start_analysis(self):
+        if self.analysis_service is None:
+            return
+
+        self.analysis_button.state(["disabled"])
+        self.status.set("Gemma está analisando o próximo documento TXT...")
+        threading.Thread(target=self._analyze_next, daemon=True).start()
+
+    def _analyze_next(self):
+        try:
+            outcome = self.analysis_service.analyze_next()
+        except Exception as error:
+            self.root.after(0, self._finish_analysis_error, error)
+        else:
+            self.root.after(0, self._finish_analysis, outcome)
+
+    def _finish_analysis(self, outcome):
+        self.analysis_button.state(["!disabled"])
+
+        if outcome is None:
+            self.status.set("Nenhum documento TXT pendente de análise")
+            return
+
+        documents = self.search_service.search(self.query.get())
+        self.results.set_documents(documents)
+        self.status.set(
+            f"Análise concluída: {outcome.document.name} — "
+            f"{outcome.analysis.category}"
+        )
+
+    def _finish_analysis_error(self, error):
+        self.analysis_button.state(["!disabled"])
+        self.status.set("Não foi possível concluir a análise")
+        messagebox.showerror("Erro na análise com Gemma", str(error))
 
     def open_selected_document(self, _event=None):
         document = self.results.selected_document()

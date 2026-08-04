@@ -4,7 +4,11 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import Mock
 
-from app.services.analyzer import DocumentAnalyzer, DocumentAnalysisError
+from app.services.analyzer import (
+    AnalysisService,
+    DocumentAnalyzer,
+    DocumentAnalysisError,
+)
 
 
 class DocumentAnalyzerTest(unittest.TestCase):
@@ -58,6 +62,37 @@ class DocumentAnalyzerTest(unittest.TestCase):
             self.analyzer.analyze(self.document)
 
         self.repository.save_analysis.assert_not_called()
+
+
+class AnalysisServiceTest(unittest.TestCase):
+
+    def test_analyzes_next_pending_text_document(self):
+        document = SimpleNamespace(name="document.txt")
+        analysis = SimpleNamespace(category="Report")
+        repository = Mock()
+        repository.pending_analysis.return_value = [document]
+        analyzer = Mock()
+        analyzer.analyze.return_value = analysis
+
+        outcome = AnalysisService(repository, analyzer).analyze_next()
+
+        repository.pending_analysis.assert_called_once_with(
+            extension=".txt",
+            limit=1,
+        )
+        analyzer.analyze.assert_called_once_with(document)
+        self.assertEqual(outcome.document, document)
+        self.assertEqual(outcome.analysis, analysis)
+
+    def test_returns_none_when_no_text_document_is_pending(self):
+        repository = Mock()
+        repository.pending_analysis.return_value = []
+        analyzer = Mock()
+
+        outcome = AnalysisService(repository, analyzer).analyze_next()
+
+        self.assertIsNone(outcome)
+        analyzer.analyze.assert_not_called()
 
 
 if __name__ == "__main__":

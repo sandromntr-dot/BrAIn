@@ -16,6 +16,12 @@ class DocumentAnalysis:
     response_tokens: int
 
 
+@dataclass(frozen=True)
+class AnalysisOutcome:
+    document: object
+    analysis: DocumentAnalysis
+
+
 class DocumentAnalyzer:
 
     RESPONSE_SCHEMA = {
@@ -93,3 +99,20 @@ class DocumentAnalyzer:
             prompt_tokens=0,
             response_tokens=0,
         )
+
+
+class AnalysisService:
+
+    def __init__(self, repository, analyzer):
+        self.repository = repository
+        self.analyzer = analyzer
+
+    def analyze_next(self):
+        pending = self.repository.pending_analysis(extension=".txt", limit=1)
+
+        if not pending:
+            return None
+
+        document = pending[0]
+        analysis = self.analyzer.analyze(document)
+        return AnalysisOutcome(document=document, analysis=analysis)

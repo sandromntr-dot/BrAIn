@@ -1,5 +1,7 @@
+from app.ai.gemma import GemmaClient
 from app.database.connection import Database
 from app.database.repository import DocumentRepository
+from app.services.analyzer import AnalysisService, DocumentAnalyzer
 from app.services.indexer import Indexer
 from app.services.search import SearchService
 from app.ui.window import MainWindow
@@ -14,7 +16,10 @@ def main():
     indexer = Indexer(repository)
     indexer.run()
 
-    window = MainWindow(SearchService(repository))
+    analyzer = DocumentAnalyzer(GemmaClient(), repository)
+    analysis_service = AnalysisService(repository, analyzer)
+
+    window = MainWindow(SearchService(repository), analysis_service)
     window.run()
 
 
