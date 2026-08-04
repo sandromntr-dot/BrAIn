@@ -53,9 +53,10 @@ Atualmente o BrAIn já é capaz de:
 - ✅ Atualizar documentos incrementalmente quando seus metadados mudarem.
 - ✅ Marcar documentos removidos como indisponíveis sem apagar seu histórico.
 - ✅ Pesquisar por nome, caminho, extensão, resumo e categoria.
-- ✅ Extrair conteúdo de arquivos TXT, DOCX e PDFs textuais.
+- ✅ Extrair conteúdo de arquivos TXT, DOCX, PDFs textuais, CSV, BPMN e PPTX.
 - ✅ Gerar resumos e categorias com Gemma 4 através do Ollama local.
-- ✅ Processar o próximo documento pendente ou um documento selecionado.
+- ✅ Processar automaticamente os documentos pendentes, com pausa, retomada e
+  tolerância a falhas, ou analisar um documento selecionado.
 - ✅ Pesquisar e visualizar resultados em uma interface Tkinter.
 - ✅ Modelagem orientada a objetos utilizando a entidade `Document`.
 - ✅ Testes automatizados para scanner, indexador, persistência, extração e IA.
@@ -115,7 +116,16 @@ ollama list
 ollama run gemma4:latest
 ```
 
-Na interface, utilize **Analisar próximo documento** para seguir a fila ou selecione uma linha compatível e utilize **Analisar selecionado**. Os formatos analisáveis atualmente são `.txt`, `.docx` e `.pdf` textual.
+Na interface, utilize **Analisar documentos pendentes** para executar a primeira
+carga ou retomar a fila. O painel de atividade mostra o arquivo atual, o tempo
+decorrido e os contadores de sucessos, falhas e itens pendentes. Utilize **Pausar
+após o atual** para interromper com segurança depois que o documento em andamento
+terminar. Também é possível selecionar uma linha compatível e utilizar **Analisar
+selecionado**.
+
+Os formatos analisáveis atualmente são `.txt`, `.docx`, `.pdf` textual, `.csv`,
+`.bpmn` e `.pptx` com texto interno. Cada resultado é persistido imediatamente;
+arquivos com erro são registrados e ignorados pela execução automática seguinte.
 
 Para executar os testes automatizados:
 
@@ -160,9 +170,9 @@ O desenvolvimento deste projeto é guiado pelas melhores práticas de engenharia
 - [x] Integração com Gemma 4
 - [x] Classificação assistida
 - [x] Resumos assistidos
-- [x] Extração de TXT, DOCX e PDF textual
+- [x] Extração de TXT, DOCX, PDF textual, CSV, BPMN e PPTX
 - [ ] OCR para PDFs digitalizados
-- [ ] Processamento em lote com controle de falhas
+- [x] Processamento em lote com progresso, pausa e controle de falhas
 - [ ] Busca semântica
 
 ### Fase 4 - Interface Desktop
@@ -170,6 +180,7 @@ O desenvolvimento deste projeto é guiado pelas melhores práticas de engenharia
 - [x] Pesquisa por metadados
 - [x] Exibição de resumo e categoria
 - [x] Análise do documento selecionado
+- [x] Monitor de atividade da análise em lote
 - [ ] Dashboard
 - [ ] Histórico
 - [ ] Estatísticas
@@ -204,22 +215,21 @@ Versão atual: **MVP em desenvolvimento ativo**
 - Busca local por metadados
 - Interface desktop em Tkinter
 - Integração local com Ollama e Gemma 4
-- Extração e análise de TXT, DOCX e PDFs textuais
+- Extração e análise de TXT, DOCX, PDFs textuais, CSV, BPMN e PPTX
 - Resumos e categorias persistidos no SQLite
+- Primeira carga automática com progresso, pausa, retomada e tolerância a falhas
 - Testes automatizados
 
 ### Em desenvolvimento
 
 - OCR para documentos digitalizados
-- Tratamento persistente de falhas de processamento
 - Busca semântica e RAG
 
 ### Limitações atuais
 
-- PDFs compostos apenas por imagens ainda exigem OCR.
+- PDFs e apresentações compostos apenas por imagens ainda exigem OCR.
 - A análise com Gemma pode levar alguns minutos quando executada somente em CPU.
 - O conteúdo enviado ao modelo é limitado a 6.000 caracteres por documento.
-- O processamento automático em lote ainda não está habilitado.
 ---
 
 ** Autor**
