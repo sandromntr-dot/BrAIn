@@ -14,12 +14,19 @@ class Document:
             path.stat().st_ctime
         )
 
+    @property
+    def size_mb(self):
+        return round(
+            self.size / (1024 * 1024),
+            2
+        )
+
     def __str__(self):
         return (
             f"Document("
             f"name='{self.name}', "
             f"extension='{self.extension}', "
-            f"size={self.size}, "
+            f"size={self.size_mb} MB, "
             f"created_at={self.created_at}"
             f")"
         )
