@@ -87,6 +87,17 @@ class AnalysisServiceTest(unittest.TestCase):
         self.assertEqual(outcome.document, document)
         self.assertEqual(outcome.analysis, analysis)
 
+    def test_returns_next_pending_document_without_analyzing_it(self):
+        document = SimpleNamespace(name="document.txt", extension=".txt")
+        repository = Mock()
+        repository.pending_analysis.return_value = [document]
+        analyzer = Mock()
+
+        selected = AnalysisService(repository, analyzer).next_pending_document()
+
+        self.assertIs(selected, document)
+        analyzer.analyze.assert_not_called()
+
     def test_returns_none_when_no_text_document_is_pending(self):
         repository = Mock()
         repository.pending_analysis.return_value = []

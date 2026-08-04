@@ -1,5 +1,7 @@
 import os
+import queue
 import threading
+import time
 import tkinter as tk
 from pathlib import Path
 from tkinter import messagebox, ttk
@@ -30,8 +32,20 @@ class MainWindow:
         self.analysis_service = analysis_service
         self.folder_service = folder_service
         self.root = root or tk.Tk()
+        self._batch_running = False
+        self._batch_stop_requested = threading.Event()
+        self._batch_clock_token = 0
+        self._batch_events = queue.Queue()
         self.query = tk.StringVar(master=self.root)
         self.status = tk.StringVar(master=self.root, value="Pronto para pesquisar")
+        self.analysis_activity = tk.StringVar(
+            master=self.root,
+            value="IA aguardando início da análise",
+        )
+        self.analysis_activity_details = tk.StringVar(
+            master=self.root,
+            value="Clique em “Analisar documentos pendentes” para iniciar.",
+        )
         self.detail_name = tk.StringVar(master=self.root, value="Selecione um documento")
         self.detail_category = tk.StringVar(master=self.root, value="Sem categoria")
         self.detail_summary = tk.StringVar(
@@ -288,7 +302,7 @@ class MainWindow:
         results_card = ttk.Frame(content, style="Card.TFrame", padding=(18, 16))
         results_card.grid(row=3, column=0, sticky="nsew")
         results_card.columnconfigure(0, weight=1)
-        results_card.rowconfigure(2, weight=1)
+        results_card.rowconfigure(3, weight=1)
 
         ttk.Label(
             results_card,
@@ -303,11 +317,22 @@ class MainWindow:
 
         self.analysis_button = ttk.Button(
             results_card,
-            text="Analisar próximo documento",
-            command=self.start_next_analysis,
+            text="Analisar documentos pendentes",
+            command=self.start_batch_analysis,
             style="Analysis.TButton",
         )
         self.analysis_button.grid(row=0, column=1, rowspan=2, sticky="e")
+
+        self.pause_analysis_button = ttk.Button(
+            results_card,
+            text="Pausar após o atual",
+            command=self.pause_batch_analysis,
+            style="Analysis.TButton",
+        )
+        self.pause_analysis_button.grid(
+            row=0, column=2, rowspan=2, sticky="e", padx=(8, 0)
+        )
+        self.pause_analysis_button.state(["disabled"])
 
         self.selected_analysis_button = ttk.Button(
             results_card,
@@ -317,7 +342,7 @@ class MainWindow:
         )
         self.selected_analysis_button.grid(
             row=0,
-            column=2,
+            column=3,
             rowspan=2,
             sticky="e",
             padx=(8, 0),
@@ -329,13 +354,48 @@ class MainWindow:
         else:
             self._update_analysis_button()
 
+        activity_panel = tk.Frame(
+            results_card,
+            background="#EEF0FF",
+            highlightbackground="#CDD1FF",
+            highlightthickness=1,
+            padx=14,
+            pady=10,
+        )
+        activity_panel.grid(
+            row=2,
+            column=0,
+            columnspan=4,
+            sticky="ew",
+            pady=(4, 12),
+        )
+        activity_panel.columnconfigure(0, weight=1)
+        tk.Label(
+            activity_panel,
+            textvariable=self.analysis_activity,
+            background="#EEF0FF",
+            foreground=self.PRIMARY,
+            anchor="w",
+            font=("Segoe UI", 10, "bold"),
+        ).grid(row=0, column=0, sticky="ew")
+        tk.Label(
+            activity_panel,
+            textvariable=self.analysis_activity_details,
+            background="#EEF0FF",
+            foreground=self.TEXT,
+            anchor="w",
+            justify="left",
+            wraplength=850,
+            font=("Segoe UI", 9),
+        ).grid(row=1, column=0, sticky="ew", pady=(3, 0))
+
         self.results = SearchResultsTable(results_card)
-        self.results.grid(row=2, column=0, columnspan=3, sticky="nsew")
+        self.results.grid(row=3, column=0, columnspan=4, sticky="nsew")
         self.results.tree.bind("<Double-1>", self.open_selected_document)
         self.results.tree.bind("<<TreeviewSelect>>", self.show_selected_document)
 
         detail = ttk.Frame(results_card, style="Card.TFrame")
-        detail.grid(row=3, column=0, columnspan=3, sticky="ew", pady=(14, 0))
+        detail.grid(row=4, column=0, columnspan=4, sticky="ew", pady=(14, 0))
         detail.columnconfigure(1, weight=1)
 
         detail_surface = tk.Frame(
@@ -546,11 +606,177 @@ class MainWindow:
         self.results.set_documents(documents)
         self.status.set(f"{len(documents)} documento(s) encontrado(s)")
 
-    def start_next_analysis(self):
+    def start_batch_analysis(self):
         if self.analysis_service is None:
             return
 
-        self._start_analysis()
+        if self._batch_running:
+            return
+
+        self._batch_running = True
+        self._batch_stop_requested.clear()
+        self.analysis_button.state(["disabled"])
+        self.selected_analysis_button.state(["disabled"])
+        self.pause_analysis_button.state(["!disabled"])
+        self.analysis_progress.grid()
+        self.analysis_progress.start(12)
+        pending = self.analysis_service.pending_count()
+        self.status.set(f"Iniciando análise de {pending} documento(s)...")
+        self.analysis_activity.set("● Preparando o Gemma")
+        self.analysis_activity_details.set(
+            f"Fila iniciada com {pending} documento(s) pendente(s)."
+        )
+        self.root.after(100, self._poll_batch_events)
+        threading.Thread(target=self._run_batch_analysis, daemon=True).start()
+
+    def pause_batch_analysis(self):
+        if not self._batch_running:
+            return
+
+        self._batch_stop_requested.set()
+        self.pause_analysis_button.state(["disabled"])
+        self.status.set("Pausa solicitada — concluindo o documento atual...")
+        self.analysis_activity.set("● Pausa solicitada")
+
+    def _run_batch_analysis(self):
+        completed = 0
+        failed = 0
+
+        while not self._batch_stop_requested.is_set():
+            document = self.analysis_service.next_pending_document()
+
+            if document is None:
+                break
+
+            self._batch_events.put(
+                ("started", document, completed, failed)
+            )
+
+            try:
+                outcome = self.analysis_service.analyze_document(document)
+            except Exception as error:
+                failed += 1
+                self._batch_events.put(
+                    ("progress", completed, failed, None, error)
+                )
+                continue
+
+            completed += 1
+            self._batch_events.put(
+                ("progress", completed, failed, outcome, None)
+            )
+
+        paused = self._batch_stop_requested.is_set()
+        self._batch_events.put(("finished", completed, failed, paused))
+
+    def _poll_batch_events(self):
+        while True:
+            try:
+                event = self._batch_events.get_nowait()
+            except queue.Empty:
+                break
+
+            kind, *payload = event
+
+            if kind == "started":
+                self._begin_batch_document(*payload)
+            elif kind == "progress":
+                self._update_batch_progress(*payload)
+            elif kind == "finished":
+                self._finish_batch_analysis(*payload)
+
+        if self._batch_running:
+            self.root.after(100, self._poll_batch_events)
+
+    def _begin_batch_document(self, document, completed, failed):
+        self._batch_clock_token += 1
+        token = self._batch_clock_token
+        started_at = time.monotonic()
+        self._refresh_batch_clock(
+            token,
+            started_at,
+            document.name,
+            completed,
+            failed,
+        )
+
+    def _refresh_batch_clock(
+        self,
+        token,
+        started_at,
+        document_name,
+        completed,
+        failed,
+    ):
+        if not self._batch_running or token != self._batch_clock_token:
+            return
+
+        elapsed = int(time.monotonic() - started_at)
+        minutes, seconds = divmod(elapsed, 60)
+        pending = self.analysis_service.pending_count()
+        action = (
+            "Pausa solicitada; aguardando este documento"
+            if self._batch_stop_requested.is_set()
+            else "Gemma analisando"
+        )
+        self.status.set(
+            f"{action}: {document_name} | Tempo: {minutes:02d}:{seconds:02d} | "
+            f"Sucessos: {completed} | Falhas: {failed} | Pendentes: {pending}"
+        )
+        self.analysis_activity.set(f"● {action}")
+        self.analysis_activity_details.set(
+            f"Arquivo: {document_name}\n"
+            f"Tempo: {minutes:02d}:{seconds:02d}  •  Sucessos: {completed}  •  "
+            f"Falhas: {failed}  •  Pendentes: {pending}"
+        )
+        self.root.after(
+            1000,
+            self._refresh_batch_clock,
+            token,
+            started_at,
+            document_name,
+            completed,
+            failed,
+        )
+
+    def _update_batch_progress(self, completed, failed, outcome, error):
+        pending = self.analysis_service.pending_count()
+
+        if outcome is not None:
+            detail = f"Concluído: {outcome.document.name}"
+        else:
+            detail = f"Arquivo ignorado após erro: {error}"
+
+        self.status.set(
+            f"{detail} | Sucessos: {completed} | Falhas: {failed} | "
+            f"Pendentes: {pending}"
+        )
+        self.analysis_activity.set(
+            "● Documento concluído" if outcome is not None else "● Falha ignorada"
+        )
+        self.analysis_activity_details.set(detail)
+
+    def _finish_batch_analysis(self, completed, failed, paused):
+        self._batch_running = False
+        self._batch_clock_token += 1
+        self._stop_analysis_progress()
+        self.pause_analysis_button.state(["disabled"])
+        self._update_analysis_button()
+        self.results.set_documents(self.search_service.search(self.query.get()))
+        prefix = (
+            "Análise pausada com segurança"
+            if paused
+            else "Primeira análise concluída"
+        )
+        self.status.set(
+            f"{prefix} | Sucessos: {completed} | Falhas ignoradas: {failed} | "
+            f"Pendentes: {self.analysis_service.pending_count()}"
+        )
+        self.analysis_activity.set(f"● {prefix}")
+        self.analysis_activity_details.set(
+            f"Sucessos: {completed}  •  Falhas ignoradas: {failed}  •  "
+            f"Pendentes: {self.analysis_service.pending_count()}"
+        )
 
     def start_selected_analysis(self):
         document = self.results.selected_document()
@@ -561,6 +787,9 @@ class MainWindow:
         self._start_analysis(document)
 
     def _start_analysis(self, document=None):
+        if self._batch_running:
+            return
+
         self.analysis_button.state(["disabled"])
         self.selected_analysis_button.state(["disabled"])
         self.analysis_progress.grid()
@@ -623,9 +852,11 @@ class MainWindow:
             return
 
         pending = self.analysis_service.pending_count()
-        self.analysis_button.configure(text=f"Analisar próximo documento ({pending})")
+        self.analysis_button.configure(
+            text=f"Analisar documentos pendentes ({pending})"
+        )
 
-        if pending:
+        if pending and not self._batch_running:
             self.analysis_button.state(["!disabled"])
         else:
             self.analysis_button.state(["disabled"])
@@ -648,6 +879,7 @@ class MainWindow:
 
         if (
             self.analysis_service is not None
+            and not self._batch_running
             and self.analysis_service.supports(document)
         ):
             self.selected_analysis_button.state(["!disabled"])

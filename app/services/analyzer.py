@@ -117,6 +117,14 @@ class AnalysisService:
         self.analyzer = analyzer
 
     def analyze_next(self):
+        document = self.next_pending_document()
+
+        if document is None:
+            return None
+
+        return self.analyze_document(document)
+
+    def next_pending_document(self):
         pending = []
 
         for extension in self.SUPPORTED_EXTENSIONS:
@@ -128,7 +136,7 @@ class AnalysisService:
         if not pending:
             return None
 
-        return self.analyze_document(pending[0])
+        return pending[0]
 
     def analyze_document(self, document):
         extension = (document.extension or "").casefold()
