@@ -1,16 +1,10 @@
-from app.core.scanner import Scanner
+from app.services.indexer import Indexer
 
 
 def main():
 
-    scanner = Scanner(
-        r"C:\Users\Admin\Downloads"
-    )
-
-    documents = scanner.scan()
-
-    for document in documents:
-        print(document)
+    indexer = Indexer()
+    indexer.run()
 
 
 if __name__ == "__main__":
