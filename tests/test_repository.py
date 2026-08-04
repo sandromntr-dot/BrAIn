@@ -180,6 +180,46 @@ class DocumentRepositoryTest(unittest.TestCase):
         self.assertIn("available", columns)
         self.assertIn("missing_at", columns)
 
+    def test_searches_available_documents_by_metadata(self):
+        matching_path = self.root / "Architecture Guide.PDF"
+        other_path = self.root / "notes.txt"
+        matching_path.write_text("architecture", encoding="utf-8")
+        other_path.write_text("notes", encoding="utf-8")
+        self.repository.save(Document(matching_path))
+        self.repository.save(Document(other_path))
+
+        results = self.repository.search("architecture")
+
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0].name, matching_path.name)
+        self.assertEqual(results[0].path, matching_path)
+        self.assertTrue(results[0].available)
+
+    def test_search_excludes_unavailable_documents(self):
+        self.repository.save(Document(self.document_path))
+        self.document_path.unlink()
+        self.repository.mark_missing(self.root, [])
+
+        results = self.repository.search("example")
+
+        self.assertEqual(results, [])
+
+    def test_search_treats_sql_wildcards_as_literal_characters(self):
+        percent_path = self.root / "report_100%.txt"
+        other_path = self.root / "report_1000.txt"
+        percent_path.write_text("percent", encoding="utf-8")
+        other_path.write_text("other", encoding="utf-8")
+        self.repository.save(Document(percent_path))
+        self.repository.save(Document(other_path))
+
+        results = self.repository.search("100%")
+
+        self.assertEqual([result.path for result in results], [percent_path])
+
+    def test_search_rejects_invalid_limit(self):
+        with self.assertRaises(ValueError):
+            self.repository.search("document", limit=0)
+
 
 if __name__ == "__main__":
     unittest.main()

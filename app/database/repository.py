@@ -2,6 +2,7 @@ from contextlib import closing
 from pathlib import Path
 
 from app.database.connection import Database
+from app.database.models import StoredDocument
 
 
 class DocumentRepository:
@@ -103,6 +104,73 @@ class DocumentRepository:
 
         return len(missing)
 
+    def search(self, query, limit=50):
+        if limit < 1:
+            raise ValueError("limit must be greater than zero")
+
+        escaped_query = self._escape_like(query.strip())
+        pattern = f"%{escaped_query}%"
+
+        with closing(self.database.connect()) as connection:
+            rows = connection.execute("""
+                SELECT
+                    id,
+                    name,
+                    path,
+                    extension,
+                    size,
+                    created_at,
+                    summary,
+                    category,
+                    processed,
+                    indexed_at,
+                    available,
+                    missing_at
+                FROM documents
+                WHERE available = 1
+                  AND (
+                      ? = ''
+                      OR name LIKE ? ESCAPE '!'
+                      OR path LIKE ? ESCAPE '!'
+                      OR extension LIKE ? ESCAPE '!'
+                      OR summary LIKE ? ESCAPE '!'
+                      OR category LIKE ? ESCAPE '!'
+                  )
+                ORDER BY name COLLATE NOCASE, path COLLATE NOCASE
+                LIMIT ?
+            """, (
+                escaped_query,
+                pattern,
+                pattern,
+                pattern,
+                pattern,
+                pattern,
+                limit,
+            )).fetchall()
+
+        return [self._to_stored_document(row) for row in rows]
+
     @staticmethod
     def _normalized_path(path):
         return str(Path(path).resolve(strict=False)).casefold()
+
+    @staticmethod
+    def _escape_like(value):
+        return value.replace("!", "!!").replace("%", "!%").replace("_", "!_")
+
+    @staticmethod
+    def _to_stored_document(row):
+        return StoredDocument(
+            id=row[0],
+            name=row[1],
+            path=Path(row[2]),
+            extension=row[3],
+            size=row[4],
+            created_at=row[5],
+            summary=row[6],
+            category=row[7],
+            processed=bool(row[8]),
+            indexed_at=row[9],
+            available=bool(row[10]),
+            missing_at=row[11],
+        )
