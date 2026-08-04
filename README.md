@@ -1,5 +1,5 @@
 # BrAIn 🧠
-**### Assistente Inteligente para Organização e Busca de Documentos utilizando IA Local**
+### Assistente inteligente para organização e busca de documentos com IA local
 
 O BrAIn é um assistente inteligente projetado para a organização, gerenciamento e localização de documentos utilizando Inteligência Artificial executada 100% localmente.
 
@@ -51,8 +51,14 @@ Atualmente o BrAIn já é capaz de:
 - ✅ Persistir os metadados localmente em SQLite.
 - ✅ Impedir duplicações utilizando o caminho do arquivo como identificador único.
 - ✅ Atualizar documentos incrementalmente quando seus metadados mudarem.
+- ✅ Marcar documentos removidos como indisponíveis sem apagar seu histórico.
+- ✅ Pesquisar por nome, caminho, extensão, resumo e categoria.
+- ✅ Extrair conteúdo de arquivos TXT, DOCX e PDFs textuais.
+- ✅ Gerar resumos e categorias com Gemma 4 através do Ollama local.
+- ✅ Processar o próximo documento pendente ou um documento selecionado.
+- ✅ Pesquisar e visualizar resultados em uma interface Tkinter.
 - ✅ Modelagem orientada a objetos utilizando a entidade `Document`.
-- ✅ Testes automatizados para scanner, indexador e persistência.
+- ✅ Testes automatizados para scanner, indexador, persistência, extração e IA.
 - ✅ Arquitetura modular preparada para expansão.
 
 ---
@@ -62,10 +68,12 @@ Atualmente o BrAIn já é capaz de:
 O fluxo implementado atualmente é:
 
 ```text
-Configuração → Indexer → Scanner → DocumentRepository → SQLite
+Configuração → Scanner → Indexer → DocumentRepository → SQLite
+                                           ↑              ↓
+Tkinter → SearchService / AnalysisService → Gemma 4 ← Ollama
 ```
 
-A imagem abaixo representa a arquitetura-alvo do projeto, incluindo os módulos de IA e interface ainda planejados.
+A imagem abaixo representa a visão geral que orientou a arquitetura do projeto.
 
 ![Visão Geral da Arquitetura do BrAIn](assets/image.png)
 
@@ -79,12 +87,14 @@ A imagem abaixo representa a arquitetura-alvo do projeto, incluindo os módulos 
 * **Ambiente & Gestão:** uv, Git, GitHub
 
 **Inteligência Artificial**
-* **Modelo planejado:** Gemma (Google)
-* **Engine planejada:** Ollama (processamento 100% local)
+* **Modelo:** Gemma 4 8B, executado localmente
+* **Engine:** Ollama
+* **Saída estruturada:** resumo e categoria em JSON
 
 **Banco de Dados & Interface**
 * **Memória Central:** SQLite
-* **Frontend planejado:** Python Desktop GUI
+* **Frontend:** Tkinter/ttk
+* **Extração de PDF:** pypdf
 
 ---
 
@@ -97,6 +107,15 @@ python -m app.main
 ```
 
 As pastas monitoradas são definidas em `config/settings.json`. O BrAIn apenas lê os arquivos encontrados e persiste seus metadados em `data/brain.db`; ele não move, renomeia ou modifica os documentos.
+
+Para utilizar a análise local, mantenha o Ollama em execução e instale o modelo configurado:
+
+```powershell
+ollama list
+ollama run gemma4:latest
+```
+
+Na interface, utilize **Analisar próximo documento** para seguir a fila ou selecione uma linha compatível e utilize **Analisar selecionado**. Os formatos analisáveis atualmente são `.txt`, `.docx` e `.pdf` textual.
 
 Para executar os testes automatizados:
 
@@ -134,18 +153,24 @@ O desenvolvimento deste projeto é guiado pelas melhores práticas de engenharia
 - [x] Atualização incremental da base
 - [x] Prevenção de registros duplicados por caminho
 - [x] Testes automatizados do núcleo implementado
-- [ ] Detecção de arquivos removidos
+- [x] Detecção reversível de arquivos removidos
 
 ### Fase 3 - Inteligência Artificial
-- [ ] Integração com Ollama
-- [ ] Integração com Gemma
-- [ ] Classificação automática
-- [ ] Resumos automáticos
+- [x] Integração com Ollama
+- [x] Integração com Gemma 4
+- [x] Classificação assistida
+- [x] Resumos assistidos
+- [x] Extração de TXT, DOCX e PDF textual
+- [ ] OCR para PDFs digitalizados
+- [ ] Processamento em lote com controle de falhas
 - [ ] Busca semântica
 
 ### Fase 4 - Interface Desktop
+- [x] Interface inicial em Tkinter
+- [x] Pesquisa por metadados
+- [x] Exibição de resumo e categoria
+- [x] Análise do documento selecionado
 - [ ] Dashboard
-- [ ] Pesquisa
 - [ ] Histórico
 - [ ] Estatísticas
 
@@ -175,13 +200,26 @@ Versão atual: **MVP em desenvolvimento ativo**
 - Persistência local em SQLite
 - Atualização incremental e prevenção de duplicações
 - Scanner recursivo com relatório de falhas
+- Detecção reversível de documentos removidos
+- Busca local por metadados
+- Interface desktop em Tkinter
+- Integração local com Ollama e Gemma 4
+- Extração e análise de TXT, DOCX e PDFs textuais
+- Resumos e categorias persistidos no SQLite
 - Testes automatizados
 
 ### Em desenvolvimento
 
-- Busca
-- Extração de conteúdo
-- IA Local
+- OCR para documentos digitalizados
+- Tratamento persistente de falhas de processamento
+- Busca semântica e RAG
+
+### Limitações atuais
+
+- PDFs compostos apenas por imagens ainda exigem OCR.
+- A análise com Gemma pode levar alguns minutos quando executada somente em CPU.
+- O conteúdo enviado ao modelo é limitado a 6.000 caracteres por documento.
+- O processamento automático em lote ainda não está habilitado.
 ---
 
 ** Autor**
