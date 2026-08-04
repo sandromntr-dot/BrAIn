@@ -37,6 +37,19 @@ class Indexer:
 
             print(f"Encontrados: {len(documents)}\n")
 
+            persisted = 0
+            unchanged = 0
+
             for document in documents:
-                self.repository.save(document)
+                if self.repository.save(document):
+                    persisted += 1
+                else:
+                    unchanged += 1
+
                 print(f" - {document.name}")
+
+            print(
+                f"Persistidos/atualizados: {persisted} | "
+                f"Sem alteracao: {unchanged} | "
+                f"Falhas de leitura: {len(scanner.errors)}"
+            )
