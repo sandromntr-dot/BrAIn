@@ -40,18 +40,32 @@ Atualmente o BrAIn já é capaz de:
 
 - ✅ Detectar automaticamente pastas padrão do Windows (Downloads, Documents e Desktop).
 - ✅ Permitir configuração das pastas monitoradas através de arquivo JSON.
-- ✅ Escanear centenas de arquivos em poucos segundos.
+- ✅ Escanear pastas e subpastas recursivamente.
+- ✅ Continuar a indexação quando um arquivo ou diretório não puder ser lido.
 - ✅ Coletar metadados dos documentos:
   - Nome
+  - Caminho
   - Extensão
-  - Tamanho
+  - Tamanho em bytes
   - Data de criação
+- ✅ Persistir os metadados localmente em SQLite.
+- ✅ Impedir duplicações utilizando o caminho do arquivo como identificador único.
+- ✅ Atualizar documentos incrementalmente quando seus metadados mudarem.
 - ✅ Modelagem orientada a objetos utilizando a entidade `Document`.
+- ✅ Testes automatizados para scanner, indexador e persistência.
 - ✅ Arquitetura modular preparada para expansão.
 
 ---
 
 ## Arquitetura do Sistema
+
+O fluxo implementado atualmente é:
+
+```text
+Configuração → Indexer → Scanner → DocumentRepository → SQLite
+```
+
+A imagem abaixo representa a arquitetura-alvo do projeto, incluindo os módulos de IA e interface ainda planejados.
 
 ![Visão Geral da Arquitetura do BrAIn](assets/image.png)
 
@@ -65,12 +79,30 @@ Atualmente o BrAIn já é capaz de:
 * **Ambiente & Gestão:** uv, Git, GitHub
 
 **Inteligência Artificial**
-* **Modelo:** Gemma (Google)
-* **Engine:** Ollama (Processamento 100% local)
+* **Modelo planejado:** Gemma (Google)
+* **Engine planejada:** Ollama (processamento 100% local)
 
 **Banco de Dados & Interface**
 * **Memória Central:** SQLite
-* **Frontend:** Python Desktop GUI
+* **Frontend planejado:** Python Desktop GUI
+
+---
+
+## Executando o projeto
+
+Na raiz do projeto, execute:
+
+```powershell
+python -m app.main
+```
+
+As pastas monitoradas são definidas em `config/settings.json`. O BrAIn apenas lê os arquivos encontrados e persiste seus metadados em `data/brain.db`; ele não move, renomeia ou modifica os documentos.
+
+Para executar os testes automatizados:
+
+```powershell
+python -m unittest discover -s tests -v
+```
 
 ---
 
@@ -95,11 +127,14 @@ O desenvolvimento deste projeto é guiado pelas melhores práticas de engenharia
 ### Fase 2 - Núcleo do Sistema (Core)
 - [x] Entidade Document
 - [x] Scanner de arquivos
+- [x] Scanner recursivo com tolerância a falhas de leitura
 - [x] Configuração dinâmica das pastas monitoradas
 - [x] Indexação inicial de metadados
-- [ ] Persistência em SQLite
-- [ ] Atualização incremental da base
-- [ ] Detecção de arquivos duplicados
+- [x] Persistência em SQLite
+- [x] Atualização incremental da base
+- [x] Prevenção de registros duplicados por caminho
+- [x] Testes automatizados do núcleo implementado
+- [ ] Detecção de arquivos removidos
 
 ### Fase 3 - Inteligência Artificial
 - [ ] Integração com Ollama
@@ -137,12 +172,15 @@ Versão atual: **MVP em desenvolvimento ativo**
 - Scanner de arquivos
 - Configuração dinâmica das pastas monitoradas
 - Coleta de metadados
+- Persistência local em SQLite
+- Atualização incremental e prevenção de duplicações
+- Scanner recursivo com relatório de falhas
+- Testes automatizados
 
 ### Em desenvolvimento
 
-- Banco SQLite
-- Persistência
 - Busca
+- Extração de conteúdo
 - IA Local
 ---
 
