@@ -2,9 +2,13 @@ from pathlib import Path
 
 from app.core.config import Config
 from app.core.scanner import Scanner
+from app.database.repository import DocumentRepository
 
 
 class Indexer:
+
+    def __init__(self, repository=None):
+        self.repository = repository or DocumentRepository()
 
     def run(self):
 
@@ -34,4 +38,5 @@ class Indexer:
             print(f"Encontrados: {len(documents)}\n")
 
             for document in documents:
+                self.repository.save(document)
                 print(f" - {document.name}")
