@@ -25,10 +25,10 @@ class DocumentRepositoryTest(unittest.TestCase):
     def tearDown(self):
         self.temporary_directory.cleanup()
 
-    def fetch_one(self, query):
+    def fetch_one(self, query, parameters=()):
         connection = sqlite3.connect(self.database.database)
         try:
-            return connection.execute(query).fetchone()
+            return connection.execute(query, parameters).fetchone()
         finally:
             connection.close()
 
@@ -95,6 +95,90 @@ class DocumentRepositoryTest(unittest.TestCase):
         self.assertIsNone(row[2])
         self.assertIsNone(row[3])
         self.assertEqual(row[4], 0)
+
+    def test_marks_missing_document_and_restores_it_when_found_again(self):
+        self.repository.save(Document(self.document_path))
+        self.document_path.unlink()
+
+        missing = self.repository.mark_missing(self.root, [])
+
+        unavailable_row = self.fetch_one("""
+            SELECT available, missing_at
+            FROM documents
+        """)
+
+        self.document_path.write_text("initial", encoding="utf-8")
+        restored = self.repository.save(Document(self.document_path))
+        restored_row = self.fetch_one("""
+            SELECT available, missing_at
+            FROM documents
+        """)
+
+        self.assertEqual(missing, 1)
+        self.assertEqual(unavailable_row[0], 0)
+        self.assertIsNotNone(unavailable_row[1])
+        self.assertTrue(restored)
+        self.assertEqual(restored_row, (1, None))
+
+    def test_does_not_mark_document_below_unreadable_folder_as_missing(self):
+        blocked_folder = self.root / "blocked"
+        blocked_folder.mkdir()
+        blocked_document = blocked_folder / "document.txt"
+        blocked_document.write_text("blocked", encoding="utf-8")
+        self.repository.save(Document(blocked_document))
+
+        missing = self.repository.mark_missing(
+            self.root,
+            [],
+            [blocked_folder],
+        )
+
+        available = self.fetch_one("""
+            SELECT available
+            FROM documents
+            WHERE path = ?
+        """, (str(blocked_document),))[0]
+
+        self.assertEqual(missing, 0)
+        self.assertEqual(available, 1)
+
+    def test_migrates_existing_database_for_availability_fields(self):
+        legacy_database = Database()
+        legacy_database.database = self.root / "legacy.db"
+
+        connection = sqlite3.connect(legacy_database.database)
+        try:
+            connection.execute("""
+                CREATE TABLE documents (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    name TEXT NOT NULL,
+                    path TEXT UNIQUE NOT NULL,
+                    extension TEXT,
+                    size INTEGER,
+                    created_at TEXT,
+                    summary TEXT,
+                    category TEXT,
+                    processed INTEGER NOT NULL DEFAULT 0,
+                    indexed_at TEXT NOT NULL
+                )
+            """)
+            connection.commit()
+        finally:
+            connection.close()
+
+        legacy_database.create_tables()
+
+        connection = sqlite3.connect(legacy_database.database)
+        try:
+            columns = {
+                row[1]
+                for row in connection.execute("PRAGMA table_info(documents)")
+            }
+        finally:
+            connection.close()
+
+        self.assertIn("available", columns)
+        self.assertIn("missing_at", columns)
 
 
 if __name__ == "__main__":

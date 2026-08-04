@@ -26,6 +26,25 @@ class Database:
                         summary TEXT,
                         category TEXT,
                         processed INTEGER NOT NULL DEFAULT 0,
-                        indexed_at TEXT NOT NULL
+                        indexed_at TEXT NOT NULL,
+                        available INTEGER NOT NULL DEFAULT 1,
+                        missing_at TEXT
                     );
                 """)
+
+                columns = {
+                    row[1]
+                    for row in connection.execute("PRAGMA table_info(documents)")
+                }
+
+                if "available" not in columns:
+                    connection.execute("""
+                        ALTER TABLE documents
+                        ADD COLUMN available INTEGER NOT NULL DEFAULT 1
+                    """)
+
+                if "missing_at" not in columns:
+                    connection.execute("""
+                        ALTER TABLE documents
+                        ADD COLUMN missing_at TEXT
+                    """)

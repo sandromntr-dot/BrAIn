@@ -20,6 +20,7 @@ class IndexerTest(unittest.TestCase):
 
         repository = Mock()
         repository.save.return_value = True
+        repository.mark_missing.return_value = 0
 
         settings = {
             "monitor": {
@@ -40,9 +41,38 @@ class IndexerTest(unittest.TestCase):
             Indexer(repository).run()
 
         repository.save.assert_called_once_with(document)
+        repository.mark_missing.assert_called_once()
         self.assertIn("Persistidos/atualizados: 1", output.getvalue())
+        self.assertIn("Indisponiveis: 0", output.getvalue())
         self.assertIn(str(blocked_path), output.getvalue())
         self.assertIn("access denied", output.getvalue())
+
+    def test_does_not_reconcile_missing_files_when_folder_is_unavailable(self):
+        scanner = Mock()
+        scanner.scan.return_value = []
+        scanner.errors = []
+
+        repository = Mock()
+        missing_home = Path("missing-home")
+        settings = {
+            "monitor": {
+                "downloads": True,
+                "documents": False,
+                "desktop": False,
+            }
+        }
+
+        with (
+            patch("app.services.indexer.Config") as config_class,
+            patch("app.services.indexer.Scanner", return_value=scanner),
+            patch("app.services.indexer.Path.home", return_value=missing_home),
+            patch("app.services.indexer.Path.exists", return_value=False),
+            redirect_stdout(io.StringIO()),
+        ):
+            config_class.return_value.load.return_value = settings
+            Indexer(repository).run()
+
+        repository.mark_missing.assert_not_called()
 
 
 if __name__ == "__main__":

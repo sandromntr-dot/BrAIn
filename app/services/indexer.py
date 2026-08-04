@@ -48,9 +48,19 @@ class Indexer:
 
                 print(f" - {document.name}")
 
+            missing = 0
+
+            if folder.exists():
+                missing = self.repository.mark_missing(
+                    folder,
+                    (document.path for document in documents),
+                    (path for path, _ in scanner.errors),
+                )
+
             print(
                 f"Persistidos/atualizados: {persisted} | "
                 f"Sem alteracao: {unchanged} | "
+                f"Indisponiveis: {missing} | "
                 f"Falhas de leitura: {len(scanner.errors)}"
             )
 
