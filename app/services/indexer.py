@@ -53,3 +53,6 @@ class Indexer:
                 f"Sem alteracao: {unchanged} | "
                 f"Falhas de leitura: {len(scanner.errors)}"
             )
+
+            for path, reason in scanner.errors:
+                print(f" ! {path}: {reason}")
