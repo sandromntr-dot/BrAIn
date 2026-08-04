@@ -9,7 +9,12 @@ class SearchResultsTable(ttk.Frame):
         self._documents = {}
 
         columns = ("name", "extension", "size", "path")
-        self.tree = ttk.Treeview(self, columns=columns, show="headings")
+        self.tree = ttk.Treeview(
+            self,
+            columns=columns,
+            show="headings",
+            style="Results.Treeview",
+        )
         self.tree.heading("name", text="Nome")
         self.tree.heading("extension", text="Extensão")
         self.tree.heading("size", text="Tamanho")
@@ -34,6 +39,8 @@ class SearchResultsTable(ttk.Frame):
             yscrollcommand=vertical_scroll.set,
             xscrollcommand=horizontal_scroll.set,
         )
+        self.tree.tag_configure("even", background="#FFFFFF")
+        self.tree.tag_configure("odd", background="#F8FAFD")
 
         self.tree.grid(row=0, column=0, sticky="nsew")
         vertical_scroll.grid(row=0, column=1, sticky="ns")
@@ -45,13 +52,13 @@ class SearchResultsTable(ttk.Frame):
         self.tree.delete(*self.tree.get_children())
         self._documents.clear()
 
-        for document in documents:
+        for index, document in enumerate(documents):
             item = self.tree.insert("", tk.END, values=(
                 document.name,
-                document.extension or "",
+                (document.extension or "").upper(),
                 self._format_size(document.size),
                 str(document.path),
-            ))
+            ), tags=("even" if index % 2 == 0 else "odd",))
             self._documents[item] = document
 
     def selected_document(self):
