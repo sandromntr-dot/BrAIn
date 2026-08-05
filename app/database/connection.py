@@ -44,6 +44,18 @@ class Database:
                             ON DELETE CASCADE
                     );
                 """)
+                connection.execute("""
+                    CREATE TABLE IF NOT EXISTS document_embeddings (
+                        document_path TEXT NOT NULL,
+                        model TEXT NOT NULL,
+                        source_text TEXT NOT NULL,
+                        embedding TEXT NOT NULL,
+                        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+                        PRIMARY KEY (document_path, model),
+                        FOREIGN KEY (document_path) REFERENCES documents(path)
+                            ON DELETE CASCADE
+                    );
+                """)
 
                 columns = {
                     row[1]

@@ -1,3 +1,4 @@
+from app.ai.embeddings import OllamaEmbeddingClient
 from app.ai.gemma import GemmaClient
 from app.core.config import Config
 from app.database.connection import Database
@@ -28,7 +29,7 @@ def main():
 
     folder_service = FolderSettingsService(Config())
     window = MainWindow(
-        SearchService(repository),
+        SearchService(repository, OllamaEmbeddingClient()),
         analysis_service,
         folder_service=folder_service,
         dashboard_service=DashboardService(

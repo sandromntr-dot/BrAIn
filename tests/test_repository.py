@@ -222,6 +222,51 @@ class DocumentRepositoryTest(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.repository.search("document", limit=0)
 
+    def test_saves_and_loads_document_embedding(self):
+        self.repository.save(Document(self.document_path))
+        self.repository.save_analysis(
+            self.document_path,
+            "Installation and configuration guide.",
+            "Manual",
+        )
+
+        saved = self.repository.save_embedding(
+            self.document_path,
+            "embedding-model",
+            "Example\nManual\nInstallation and configuration guide.",
+            [0.1, 0.2, 0.3],
+        )
+        candidates = self.repository.semantic_search_documents(
+            "embedding-model"
+        )
+
+        self.assertTrue(saved)
+        self.assertEqual(len(candidates), 1)
+        document, source, embedding = candidates[0]
+        self.assertEqual(document.path, self.document_path)
+        self.assertEqual(
+            source,
+            "Example\nManual\nInstallation and configuration guide.",
+        )
+        self.assertEqual(embedding, [0.1, 0.2, 0.3])
+
+    def test_new_analysis_discards_stale_embedding(self):
+        self.repository.save(Document(self.document_path))
+        self.repository.save_analysis(self.document_path, "Old summary", "Report")
+        self.repository.save_embedding(
+            self.document_path,
+            "embedding-model",
+            "Old source",
+            [1.0, 0.0],
+        )
+
+        self.repository.save_analysis(self.document_path, "New summary", "Report")
+        candidates = self.repository.semantic_search_documents(
+            "embedding-model"
+        )
+
+        self.assertEqual(candidates[0][1:], (None, None))
+
     def test_lists_pending_text_documents_and_saves_analysis(self):
         text_path = self.root / "pending.TXT"
         pdf_path = self.root / "pending.pdf"

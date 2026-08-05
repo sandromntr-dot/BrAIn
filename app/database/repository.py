@@ -1,4 +1,5 @@
 from contextlib import closing
+import json
 from pathlib import Path
 
 from app.database.connection import Database
@@ -65,6 +66,10 @@ class DocumentRepository:
                 if cursor.rowcount == 1:
                     connection.execute("""
                         DELETE FROM visual_analysis_chunks
+                        WHERE document_path = ?
+                    """, (str(document.path),))
+                    connection.execute("""
+                        DELETE FROM document_embeddings
                         WHERE document_path = ?
                     """, (str(document.path),))
 
@@ -219,6 +224,63 @@ class DocumentRepository:
                         analysis_failed_at = NULL
                     WHERE path = ? AND available = 1
                 """, (summary, category, str(path)))
+
+                if cursor.rowcount == 1:
+                    connection.execute("""
+                        DELETE FROM document_embeddings
+                        WHERE document_path = ?
+                    """, (str(path),))
+
+        return cursor.rowcount == 1
+
+    def semantic_search_documents(self, model):
+        with closing(self.database.connect()) as connection:
+            rows = connection.execute("""
+                SELECT
+                    d.id, d.name, d.path, d.extension, d.size, d.created_at,
+                    d.summary, d.category, d.processed, d.indexed_at,
+                    d.available, d.missing_at, d.analysis_error,
+                    d.analysis_failed_at, e.source_text, e.embedding
+                FROM documents AS d
+                LEFT JOIN document_embeddings AS e
+                  ON e.document_path = d.path AND e.model = ?
+                WHERE d.available = 1
+                  AND d.processed = 1
+                  AND d.summary IS NOT NULL
+                ORDER BY d.id
+            """, (model,)).fetchall()
+
+        return [
+            (
+                self._to_stored_document(row[:14]),
+                row[14],
+                json.loads(row[15]) if row[15] else None,
+            )
+            for row in rows
+        ]
+
+    def save_embedding(self, path, model, source_text, embedding):
+        if not source_text.strip() or not embedding:
+            raise ValueError("embedding source and vector must not be empty")
+
+        with closing(self.database.connect()) as connection:
+            with connection:
+                cursor = connection.execute("""
+                    INSERT INTO document_embeddings
+                        (document_path, model, source_text, embedding)
+                    SELECT path, ?, ?, ?
+                    FROM documents
+                    WHERE path = ? AND available = 1
+                    ON CONFLICT(document_path, model) DO UPDATE SET
+                        source_text = excluded.source_text,
+                        embedding = excluded.embedding,
+                        created_at = datetime('now')
+                """, (
+                    model,
+                    source_text.strip(),
+                    json.dumps(embedding),
+                    str(path),
+                ))
 
         return cursor.rowcount == 1
 

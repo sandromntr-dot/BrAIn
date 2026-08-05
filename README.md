@@ -53,6 +53,7 @@ Atualmente o BrAIn já é capaz de:
 - ✅ Atualizar documentos incrementalmente quando seus metadados mudarem.
 - ✅ Marcar documentos removidos como indisponíveis sem apagar seu histórico.
 - ✅ Pesquisar por nome, caminho, extensão, resumo e categoria.
+- ✅ Combinar busca textual e semântica com embeddings locais persistidos.
 - ✅ Extrair conteúdo de arquivos TXT, DOCX, PDFs textuais, CSV, BPMN e PPTX.
 - ✅ Analisar imagens, PDFs digitalizados e PPTX baseados em imagens com Gemma
   Vision através do Ollama local.
@@ -94,6 +95,7 @@ A imagem abaixo representa a visão geral que orientou a arquitetura do projeto.
 
 **Inteligência Artificial**
 * **Modelos:** Gemma 4 8B para texto e Gemma 3 4B para visão, executados localmente
+* **Embeddings:** EmbeddingGemma via Ollama para busca semântica local
 * **Engine:** Ollama
 * **Saída estruturada:** resumo e categoria em JSON
 * **Visão:** leitura e interpretação local de imagens e documentos digitalizados
@@ -122,6 +124,7 @@ Para utilizar a análise local, mantenha o Ollama em execução e instale o mode
 ollama list
 ollama run gemma4:latest
 ollama pull gemma3:4b
+ollama pull embeddinggemma
 ```
 
 Na interface, utilize **Analisar documentos pendentes** para executar a primeira
@@ -140,6 +143,12 @@ registrados e ignorados pela execução automática seguinte.
 Documentos visuais são processados uma página ou slide por vez. O resumo parcial
 de cada página é salvo no SQLite e reutilizado em uma nova tentativa caso a
 aplicação seja encerrada antes da consolidação final.
+
+A pesquisa combina correspondências textuais com similaridade semântica nos
+documentos já analisados. Os embeddings são criados localmente na primeira busca
+e armazenados no SQLite para reutilização. Se o Ollama ou o modelo
+`embeddinggemma` não estiver disponível, a pesquisa continua automaticamente no
+modo textual.
 
 Para executar os testes automatizados:
 
@@ -189,7 +198,7 @@ O desenvolvimento deste projeto é guiado pelas melhores práticas de engenharia
 - [x] Reconhecimento visual de PDFs digitalizados com Gemma Vision
 - [x] Processamento em lote com progresso, pausa e controle de falhas
 - [x] Checkpoints e retomada da análise visual por página/slide
-- [ ] Busca semântica
+- [x] Busca semântica
 
 ### Fase 4 - Interface Desktop
 - [x] Interface inicial em Tkinter
@@ -239,7 +248,7 @@ Versão atual: **MVP em desenvolvimento ativo**
 ### Em desenvolvimento
 
 - Aprimoramento da pausa durante documentos visuais extensos
-- Busca semântica e RAG
+- Aprimoramento da busca semântica e RAG
 
 ### Limitações atuais
 
