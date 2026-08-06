@@ -64,6 +64,7 @@ Atualmente o BrAIn já é capaz de:
   tolerância a falhas, ou analisar um documento selecionado.
 - ✅ Pesquisar e visualizar resultados em uma interface Tkinter.
 - ✅ Exibir dashboard compacto com indicadores de disponibilidade e análise.
+- ✅ Consultar o histórico local de análises concluídas e falhas.
 - ✅ Modelagem orientada a objetos utilizando a entidade `Document`.
 - ✅ Testes automatizados para scanner, indexador, persistência, extração e IA.
 - ✅ Arquitetura modular preparada para expansão.
@@ -207,7 +208,7 @@ O desenvolvimento deste projeto é guiado pelas melhores práticas de engenharia
 - [x] Análise do documento selecionado
 - [x] Monitor de atividade da análise em lote
 - [x] Dashboard de documentos e análises
-- [ ] Histórico
+- [x] Histórico
 - [ ] Estatísticas
 
 ### Fase 5 - RAG

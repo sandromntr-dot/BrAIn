@@ -339,6 +339,29 @@ class DocumentRepositoryTest(unittest.TestCase):
         self.assertTrue(analyzed)
         self.assertEqual(recovered, (None, None, 1))
 
+    def test_records_success_and_failure_in_analysis_history(self):
+        self.repository.save(Document(self.document_path))
+        self.repository.save_analysis_error(self.document_path, "Model error")
+        self.repository.save_analysis(
+            self.document_path,
+            "Document summary",
+            "Report",
+        )
+
+        history = self.repository.analysis_history()
+
+        self.assertEqual(
+            [entry.status for entry in history],
+            ["success", "failure"],
+        )
+        self.assertEqual(history[0].document_name, self.document_path.name)
+        self.assertEqual(history[0].category, "Report")
+        self.assertEqual(history[1].details, "Model error")
+
+    def test_analysis_history_rejects_invalid_limit(self):
+        with self.assertRaises(ValueError):
+            self.repository.analysis_history(limit=0)
+
     def test_persists_and_clears_visual_analysis_chunks(self):
         self.repository.save(Document(self.document_path))
         self.repository.save_visual_analysis_chunk(

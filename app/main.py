@@ -6,6 +6,7 @@ from app.database.repository import DocumentRepository
 from app.services.analyzer import AnalysisService, DocumentAnalyzer
 from app.services.dashboard import DashboardService
 from app.services.folders import FolderSettingsService
+from app.services.history import AnalysisHistoryService
 from app.services.indexer import Indexer
 from app.services.search import SearchService
 from app.ui.window import MainWindow
@@ -36,6 +37,7 @@ def main():
             repository,
             AnalysisService.SUPPORTED_EXTENSIONS,
         ),
+        history_service=AnalysisHistoryService(repository),
     )
     window.run()
 

@@ -18,3 +18,14 @@ class StoredDocument:
     missing_at: str | None
     analysis_error: str | None
     analysis_failed_at: str | None
+
+
+@dataclass(frozen=True)
+class AnalysisHistoryEntry:
+    id: int
+    document_path: Path
+    document_name: str
+    status: str
+    category: str | None
+    details: str | None
+    created_at: str

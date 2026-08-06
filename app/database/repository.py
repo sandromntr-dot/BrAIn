@@ -3,7 +3,7 @@ import json
 from pathlib import Path
 
 from app.database.connection import Database
-from app.database.models import StoredDocument
+from app.database.models import AnalysisHistoryEntry, StoredDocument
 
 
 class DocumentRepository:
@@ -230,6 +230,13 @@ class DocumentRepository:
                         DELETE FROM document_embeddings
                         WHERE document_path = ?
                     """, (str(path),))
+                    connection.execute("""
+                        INSERT INTO analysis_history
+                            (document_path, document_name, status, category)
+                        SELECT path, name, 'success', ?
+                        FROM documents
+                        WHERE path = ?
+                    """, (category, str(path)))
 
         return cursor.rowcount == 1
 
@@ -297,7 +304,42 @@ class DocumentRepository:
                     WHERE path = ? AND available = 1
                 """, (message, str(path)))
 
+                if cursor.rowcount == 1:
+                    connection.execute("""
+                        INSERT INTO analysis_history
+                            (document_path, document_name, status, details)
+                        SELECT path, name, 'failure', ?
+                        FROM documents
+                        WHERE path = ?
+                    """, (message, str(path)))
+
         return cursor.rowcount == 1
+
+    def analysis_history(self, limit=100):
+        if limit < 1:
+            raise ValueError("limit must be greater than zero")
+
+        with closing(self.database.connect()) as connection:
+            rows = connection.execute("""
+                SELECT id, document_path, document_name, status,
+                       category, details, created_at
+                FROM analysis_history
+                ORDER BY id DESC
+                LIMIT ?
+            """, (limit,)).fetchall()
+
+        return [
+            AnalysisHistoryEntry(
+                id=row[0],
+                document_path=Path(row[1]),
+                document_name=row[2],
+                status=row[3],
+                category=row[4],
+                details=row[5],
+                created_at=row[6],
+            )
+            for row in rows
+        ]
 
     def visual_analysis_chunks(self, path):
         with closing(self.database.connect()) as connection:

@@ -28,11 +28,13 @@ class MainWindow:
         root=None,
         folder_service=None,
         dashboard_service=None,
+        history_service=None,
     ):
         self.search_service = search_service
         self.analysis_service = analysis_service
         self.folder_service = folder_service
         self.dashboard_service = dashboard_service
+        self.history_service = history_service
         self.root = root or tk.Tk()
         self._batch_running = False
         self._batch_stop_requested = threading.Event()
@@ -533,6 +535,16 @@ class MainWindow:
             self._refresh_folder_summary()
 
         self._build_dashboard(sidebar)
+
+        self.history_button = ttk.Button(
+            sidebar,
+            text="Histórico de análises",
+            command=self.open_analysis_history,
+            style="Analysis.TButton",
+        )
+        self.history_button.pack(fill=tk.X, pady=(0, 12))
+        if self.history_service is None:
+            self.history_button.state(["disabled"])
 
         ai_card = tk.Frame(
             sidebar,
@@ -1074,6 +1086,75 @@ class MainWindow:
 
     def run(self):
         self.root.mainloop()
+
+    def open_analysis_history(self):
+        if self.history_service is None:
+            return
+
+        entries = self.history_service.recent()
+        dialog = tk.Toplevel(self.root)
+        dialog.title("Histórico de análises")
+        dialog.geometry("980x520")
+        dialog.minsize(720, 360)
+        dialog.configure(background=self.BACKGROUND)
+        dialog.transient(self.root)
+
+        container = ttk.Frame(dialog, style="App.TFrame", padding=22)
+        container.pack(fill=tk.BOTH, expand=True)
+        ttk.Label(
+            container,
+            text="Histórico de análises",
+            style="Title.TLabel",
+        ).pack(anchor="w")
+        ttk.Label(
+            container,
+            text=f"{len(entries)} evento(s) mais recente(s)",
+            style="Subtitle.TLabel",
+        ).pack(anchor="w", pady=(2, 14))
+
+        table_frame = ttk.Frame(container, style="Card.TFrame")
+        table_frame.pack(fill=tk.BOTH, expand=True)
+        columns = ("created_at", "status", "name", "category", "details")
+        table = ttk.Treeview(
+            table_frame,
+            columns=columns,
+            show="headings",
+            style="Results.Treeview",
+        )
+        headings = {
+            "created_at": "Data (UTC)",
+            "status": "Status",
+            "name": "Arquivo",
+            "category": "Categoria",
+            "details": "Detalhes",
+        }
+        for column, width in zip(columns, (145, 90, 230, 140, 300)):
+            table.heading(column, text=headings[column])
+            table.column(column, width=width, minwidth=80)
+
+        scrollbar = ttk.Scrollbar(
+            table_frame,
+            orient=tk.VERTICAL,
+            command=table.yview,
+            style="Results.Vertical.TScrollbar",
+        )
+        table.configure(yscrollcommand=scrollbar.set)
+        table.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+
+        status_labels = {"success": "Concluída", "failure": "Falha"}
+        for entry in entries:
+            table.insert(
+                "",
+                tk.END,
+                values=(
+                    entry.created_at,
+                    status_labels.get(entry.status, entry.status),
+                    entry.document_name,
+                    entry.category or "—",
+                    entry.details or "—",
+                ),
+            )
 
     def open_folder_settings(self):
         if self.folder_service is None:

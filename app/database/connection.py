@@ -56,6 +56,17 @@ class Database:
                             ON DELETE CASCADE
                     );
                 """)
+                connection.execute("""
+                    CREATE TABLE IF NOT EXISTS analysis_history (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        document_path TEXT NOT NULL,
+                        document_name TEXT NOT NULL,
+                        status TEXT NOT NULL CHECK (status IN ('success', 'failure')),
+                        category TEXT,
+                        details TEXT,
+                        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+                    );
+                """)
 
                 columns = {
                     row[1]

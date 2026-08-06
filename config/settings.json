@@ -4,8 +4,6 @@
         "documents": true,
         "desktop": true
     },
-    "custom_folders": [
-        "C:\\Users\\Admin\\Videos\\Captures"
-    ],
+    "custom_folders": [],
     "frequency": "manual"
 }
